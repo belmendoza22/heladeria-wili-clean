@@ -1,0 +1,83 @@
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth import login, authenticate, logout
+from django.contrib.auth.decorators import login_required
+from .forms import SignUpForm
+from .models import Sabor, Size, Addon, Cart, CartItem, Categoria
+from django.contrib import messages
+from decimal import Decimal
+
+
+def signup_view(request):
+    if request.method == 'POST':
+        form = SignUpForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            # Iniciar sesión automáticamente después del registro
+            username = form.cleaned_data.get('username')
+            raw_password = form.cleaned_data.get('password1')
+            user = authenticate(username=username, password=raw_password)
+            login(request, user)
+            return redirect('menu')  # Cambia por la URL a donde quieras redirigir
+    else:
+        form = SignUpForm()
+    return render(request, 'signup.html', {'form': form})
+
+def login_view(request):
+    if request.method == 'POST':
+        user = authenticate(request, username=request.POST.get('username'), password=request.POST.get('password'))
+        if user:
+            login(request,user)
+            return redirect('menu')
+        messages.error(request,'Usuario o contraseña incorrectos')
+    return render(request,'login.html')
+
+def logout_view(request):
+    logout(request)
+    return redirect('login')
+
+@login_required
+def menu(request):
+    flavors = Sabor.objects.all()
+    sizes = Size.objects.all()
+    addons = Addon.objects.all()
+    categorias = Categoria.objects.all()   # Obtener todas las categorías
+    context = {
+        'flavors': flavors,
+        'sizes': sizes,
+        'addons': addons,
+        'categorias': categorias,
+    }
+    return render(request, 'menu.html', context)
+
+@login_required
+def add_to_cart(request):
+    if request.method == 'POST':
+        flavor_ids = request.POST.get('flavor_ids','')
+        size_id = request.POST.get('size_id')
+        qty = int(request.POST.get('quantity','1') or '1')
+        addon_ids = request.POST.get('addon_ids','')
+        flavors = Sabor.objects.filter(id__in=[int(x) for x in flavor_ids.split(',') if x])
+        size = get_object_or_404(Size,id=size_id)
+        addons = Addon.objects.filter(id__in=[int(x) for x in addon_ids.split(',') if x])
+        cart, _ = Cart.objects.get_or_create(user=request.user)
+        item = CartItem.objects.create(cart=cart,size=size,quantity=qty)
+        item.flavors.set(flavors)
+        item.addons.set(addons)
+        messages.success(request,'Agregado al pedido')
+    return redirect('menu')
+
+from decimal import Decimal
+
+@login_required
+def view_cart(request):
+    cart, _ = Cart.objects.get_or_create(user=request.user)
+    items = cart.items.all()
+    total = Decimal('0')
+
+    for it in items:
+        base = sum([f.price for f in it.flavors.all()])
+        addons_total = sum([a.price for a in it.addons.all()])
+        multiplier = Decimal(str(it.size.multiplier))
+        it.total_price = (base * multiplier + addons_total) * it.quantity
+        total += it.total_price
+    return render(request, 'cart.html', {'items': items, 'total': total})

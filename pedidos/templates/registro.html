@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Heladería Wili - Registro</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    {% load static %}
+    <style>
+        body {
+            background: linear-gradient(135deg, #FFE8F0 0%, #E6F2FF 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 10px;
+        }
+        
+        .register-container {
+            background-color: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            width: 100%;
+            max-width: 450px;
+            margin: 10px auto;
+            padding: 20px;
+        }
+        
+        .logo-container {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        
+        .logo {
+            max-width: 140px;
+            max-height: 80px;
+            margin-bottom: 10px;
+        }
+        
+        .form-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #333;
+            text-align: center;
+        }
+        
+        .form-subtitle {
+            color: #666;
+            margin-bottom: 15px;
+            text-align: center;
+            font-size: 13px;
+        }
+        
+        .form-control {
+            border-radius: 8px;
+            padding: 10px 12px;
+            border: 1px solid #e1e5e9;
+            font-size: 14px;
+        }
+        
+        .input-group-text {
+            background-color: #f8f9fa;
+            border: 1px solid #e1e5e9;
+            border-right: none;
+            border-radius: 8px 0 0 8px;
+            padding: 10px 12px;
+        }
+        
+        .input-group .form-control {
+            border-left: none;
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .btn-register {
+            background: linear-gradient(to right, #FFAFCC, #A2D2FF);
+            border: none;
+            border-radius: 8px;
+            padding: 10px;
+            font-weight: 600;
+            color: white;
+            margin-top: 5px;
+        }
+        
+        .form-links {
+            display: flex;
+            justify-content: center;
+            margin-top: 15px;
+        }
+        
+        .form-link {
+            color: #6c757d;
+            text-decoration: none;
+            font-size: 13px;
+        }
+        
+        .compact-form .mb-3 {
+            margin-bottom: 12px !important;
+        }
+        
+        .compact-form .form-label {
+            font-size: 13px;
+            margin-bottom: 5px;
+        }
+        
+        .errorlist {
+            color: #dc3545;
+            list-style: none;
+            padding: 0;
+            margin: 5px 0 0;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-12">
+                <div class="register-container compact-form">
+                    <div class="logo-container">
+                        <!-- Ruta corregida -->
+                        <img src="{% static 'images/Logo_Wili.png' %}" alt="Heladería Wili" class="logo">
+                    </div>
+                    
+                    <h2 class="form-title">Crear Cuenta</h2>
+                    <p class="form-subtitle">Completa tus datos para registrarte</p>
+                    
+                    <form method="post" action="{% url 'registro' %}" id="registerForm">
+                        {% csrf_token %}
+                        {{ form.non_field_errors }}
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.first_name.id_for_label }}" class="form-label">Nombre</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-user"></i></span>
+                                    {{ form.first_name }}
+                                </div>
+                                {{ form.first_name.errors }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.last_name.id_for_label }}" class="form-label">Apellido</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-user"></i></span>
+                                    {{ form.last_name }}
+                                </div>
+                                {{ form.last_name.errors }}
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.email.id_for_label }}" class="form-label">Email</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                                {{ form.email }}
+                            </div>
+                            {{ form.email.errors }}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.phone.id_for_label }}" class="form-label">Teléfono</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-phone"></i></span>
+                                {{ form.phone }}
+                            </div>
+                            {{ form.phone.errors }}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.address.id_for_label }}" class="form-label">Dirección</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-home"></i></span>
+                                {{ form.address }}
+                            </div>
+                            {{ form.address.errors }}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.username.id_for_label }}" class="form-label">Usuario</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-user-circle"></i></span>
+                                {{ form.username }}
+                            </div>
+                            {{ form.username.errors }}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.password1.id_for_label }}" class="form-label">Contraseña</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                                {{ form.password1 }}
+                            </div>
+                            {{ form.password1.errors }}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.password2.id_for_label }}" class="form-label">Confirmar Contraseña</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                                {{ form.password2 }}
+                            </div>
+                            {{ form.password2.errors }}
+                        </div>
+                        
+                        <button type="submit" class="btn btn-register w-100">Registrarse</button>
+                        
+                        <div class="form-links">
+                            <a href="{% url 'login' %}" class="form-link">¿Ya tienes una cuenta? Inicia sesión</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        document.getElementById('registerForm').addEventListener('submit', function(e) {
+            const contrasena = document.getElementById('{{ form.password1.id_for_label }}').value;
+            const confirmarContrasena = document.getElementById('{{ form.password2.id_for_label }}').value;
+            
+            if (contrasena !== confirmarContrasena) {
+                alert('Las contraseñas no coinciden. Por favor, verifica.');
+                e.preventDefault();
+            }
+        });
+    </script>
+
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        document.getElementById('{{ form.first_name.id_for_label }}').placeholder = 'Nombre';
+        document.getElementById('{{ form.last_name.id_for_label }}').placeholder = 'Apellido';
+        document.getElementById('{{ form.email.id_for_label }}').placeholder = 'Email';
+        document.getElementById('{{ form.phone.id_for_label }}').placeholder = 'Teléfono';
+        document.getElementById('{{ form.address.id_for_label }}').placeholder = 'Dirección';
+        document.getElementById('{{ form.username.id_for_label }}').placeholder = 'Usuario';
+        document.getElementById('{{ form.password1.id_for_label }}').placeholder = 'Contraseña';
+        document.getElementById('{{ form.password2.id_for_label }}').placeholder = 'Confirmar Contraseña';
+      });
+    </script>
+</body>
+</html>

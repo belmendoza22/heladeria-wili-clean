@@ -1,0 +1,58 @@
+body {
+    font-family: Arial, sans-serif;
+    background: #fff9f0;
+    color: #222;
+    margin: 0;
+}
+
+.topbar {
+    background: linear-gradient(90deg, #ffb347, #ffcc66);
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.logo {
+    height: 60px;
+    width: auto;
+}
+
+main {
+    padding: 20px;
+}
+
+.flavor {
+    display: inline-block;
+    margin: 8px;
+    padding: 16px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    transition: transform 0.2s;
+}
+
+.flavor:hover {
+    transform: translateY(-5px);
+}
+
+button {
+    background: #ff6f61;
+    color: #fff;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #ff4a3d;
+}
+
+.message {
+    background: #e0ffe0;
+    padding: 10px;
+    margin: 10px 0;
+    border-radius: 6px;
+}
+

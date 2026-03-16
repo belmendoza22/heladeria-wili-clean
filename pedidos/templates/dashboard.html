@@ -1,0 +1,718 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Heladería Wili - Helados Artesanales</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        :root {
+            --lila-principal: #9b87f5;
+            --lila-claro: #c6b7f5;
+            --lila-oscuro: #7b68ee;
+            --lila-suave: #e6e1ff;
+            --blanco: #ffffff;
+            --texto-oscuro: #5a5a5a;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--texto-oscuro);
+            background-color: #f9f7ff;
+        }
+        
+        .navbar {
+            background-color: var(--lila-principal);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .navbar-brand img {
+            height: 50px;
+        }
+        
+        .nav-link {
+            color: var(--blanco) !important;
+            font-weight: 500;
+            margin: 0 5px;
+            border-radius: 20px;
+            transition: all 0.3s ease;
+        }
+        
+        .nav-link:hover, .nav-link.active {
+            background-color: var(--lila-oscuro);
+        }
+        
+        .btn-primary {
+            background-color: var(--lila-principal);
+            border-color: var(--lila-principal);
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--lila-oscuro);
+            border-color: var(--lila-oscuro);
+        }
+        
+        .btn-outline-primary {
+            color: var(--lila-principal);
+            border-color: var(--lila-principal);
+        }
+        
+        .btn-outline-primary:hover {
+            background-color: var(--lila-principal);
+            color: white;
+        }
+        
+        .hero-section {
+            background: linear-gradient(135deg, var(--lila-principal), var(--lila-oscuro));
+            color: white;
+            padding: 80px 0;
+            border-radius: 0 0 30px 30px;
+            margin-bottom: 50px;
+        }
+        
+        .section-title {
+            position: relative;
+            margin-bottom: 40px;
+            text-align: center;
+        }
+        
+        .section-title:after {
+            content: '';
+            display: block;
+            width: 80px;
+            height: 3px;
+            background-color: var(--lila-principal);
+            margin: 15px auto;
+        }
+        
+        .category-card {
+            border: none;
+            border-radius: 15px;
+            overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            margin-bottom: 25px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        }
+        
+        .category-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.15);
+        }
+        
+        .category-img {
+            height: 200px;
+            object-fit: cover;
+        }
+        
+        .category-card-body {
+            background-color: var(--blanco);
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .product-card {
+            border: none;
+            border-radius: 15px;
+            overflow: hidden;
+            transition: transform 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            margin-bottom: 25px;
+        }
+        
+        .product-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .product-img {
+            height: 200px;
+            object-fit: cover;
+        }
+
+        .flavor-card {
+            border: none;
+            border-radius: 15px;
+            overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            margin-bottom: 25px;
+            background-color: var(--blanco);
+        }
+
+        .flavor-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        }
+
+        .flavor-img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+        }
+
+        .flavor-card-body {
+            padding: 20px;
+            text-align: center;
+        }
+
+        .flavor-name {
+            font-weight: 600;
+            color: var(--lila-oscuro);
+            margin-bottom: 10px;
+        }
+
+        .flavor-description {
+            color: #777;
+            font-size: 0.9rem;
+        }
+        
+        .contact-section {
+            background-color: var(--lila-suave);
+            padding: 60px 0;
+            margin-top: 50px;
+            border-radius: 30px 30px 0 0;
+        }
+        
+        .map-container {
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        footer {
+            background-color: var(--lila-principal);
+            color: white;
+            padding: 40px 0 20px;
+        }
+        
+        .social-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            background-color: rgba(255,255,255,0.2);
+            border-radius: 50%;
+            margin-right: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .social-icon:hover {
+            background-color: white;
+            color: var(--lila-principal);
+        }
+        
+        .notification {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1050;
+            display: none;
+        }
+        
+        .carousel-indicators [data-bs-target] {
+            background-color: var(--lila-principal);
+        }
+        
+        .carousel-control-prev-icon,
+        .carousel-control-next-icon {
+            background-color: var(--lila-principal);
+            border-radius: 50%;
+            padding: 15px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark sticky-top">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <img src="{% static 'images/Logo_Wili.png' %}" alt="Heladería Wili">
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#">Inicio</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#categorias">Categorías</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#sabores">Sabores</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#contacto">Contacto</a>
+                    </li>
+                </ul>
+            </div>
+            <div class="d-flex">
+                {% if user.is_authenticated %}
+                    <form method="post" action="{% url 'logout' %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-light">Cerrar sesión</button>
+                    </form>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero-section">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-lg-6">
+                    <h1 class="display-4 fw-bold">Los Mejores Helados Artesanales</h1>
+                    <p class="lead">Disfruta de nuestros deliciosos helados elaborados con ingredientes naturales y mucho amor desde 1997.</p>
+                    <a href="#categorias" class="btn btn-light btn-lg mt-3">Ver Productos</a>
+                </div>
+                <div class="col-lg-6">
+                    <div id="heroCarousel" class="carousel slide" data-bs-ride="carousel">
+                        <div class="carousel-indicators">
+                            <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="0" class="active"></button>
+                            <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="1"></button>
+                            <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="2"></button>
+                        </div>
+                        <div class="carousel-inner rounded-3">
+                            <div class="carousel-item active">
+                                <img src="{% static 'images/Productos/kilo.jpg' %}" class="d-block w-100" alt="Helados artesanales">
+                            </div>
+                            <div class="carousel-item">
+                                <img src="{% static 'images/Productos/paletas.jpg' %}" class="d-block w-100" alt="Paletas">
+                            </div>
+                            <div class="carousel-item">
+                                <img src="{% static 'images/Productos/açai.jpg' %}" class="d-block w-100" alt="Açaí bowl">
+                            </div>
+                            <div class="carousel-item">
+                                <img src="{% static 'images/Productos/conos.jpg' %}" class="d-block w-100" alt="Conos de helado">
+                            </div>
+                        </div>
+                        <button class="carousel-control-prev" type="button" data-bs-target="#heroCarousel" data-bs-slide="prev">
+                            <span class="carousel-control-prev-icon"></span>
+                        </button>
+                        <button class="carousel-control-next" type="button" data-bs-target="#heroCarousel" data-bs-slide="next">
+                            <span class="carousel-control-next-icon"></span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Categorías -->
+    <section id="categorias" class="py-5">
+        <div class="container">
+            <h2 class="section-title">Nuestras Categorías</h2>
+            <div class="row">
+                <div class="col-md-4 col-sm-6">
+                    <div class="category-card" data-category="kilo">
+                        <img src="{% static 'images/Productos/kilo.jpg' %}" class="category-img w-100" alt="Helados por kilo">
+                        <div class="category-card-body">
+                            <h5 class="card-title">Por Kilo</h5>
+                            <p class="card-text">Disfruta de nuestros helados por peso</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 col-sm-6">
+                    <div class="category-card" data-category="cono">
+                        <img src="{% static 'images/Productos/conos.jpg' %}" class="category-img w-100" alt="Conos de helado">
+                        <div class="category-card-body">
+                            <h5 class="card-title">Conos</h5>
+                            <p class="card-text">Deliciosos conos con diferentes sabores</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 col-sm-6">
+                    <div class="category-card" data-category="paletas">
+                        <img src="{% static 'images/Productos/paletas.jpg' %}" class="category-img w-100" alt="Paletas heladas">
+                        <div class="category-card-body">
+                            <h5 class="card-title">Paletas</h5>
+                            <p class="card-text">Paletas heladas para todos los gustos</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 col-sm-6">
+                    <div class="category-card" data-category="torta">
+                        <img src="{% static 'images/Productos/torta-helada.jpg' %}" class="category-img w-100" alt="Tortas heladas">
+                        <div class="category-card-body">
+                            <h5 class="card-title">Torta Helada</h5>
+                            <p class="card-text">Perfecta para celebraciones especiales</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 col-sm-6">
+                    <div class="category-card" data-category="acai">
+                        <img src="{% static 'images/Productos/açai.jpg' %}" class="category-img w-100" alt="Açaí en vasos">
+                        <div class="category-card-body">
+                            <h5 class="card-title">Açaí</h5>
+                            <p class="card-text">Energía natural de manera deliciosa</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 col-sm-6">
+                    <div class="category-card" data-category="preparados">
+                        <img src="{% static 'images/Productos/preparados.png' %}" class="category-img w-100" alt="Helados preparados">
+                        <div class="category-card-body">
+                            <h5 class="card-title">Preparados</h5>
+                            <p class="card-text">Creaciones especiales de la casa</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Productos por Kilo -->
+    <section id="productos-kilo" class="py-5 bg-light">
+        <div class="container">
+            <h2 class="section-title">Helados por Kilo</h2>
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="product-card">
+                        <img src="{% static 'images/Productos/kilo.jpg' %}" class="product-img w-100" alt="1/4 kg">
+                        <div class="card-body">
+                            <h5 class="card-title">1/4 Kilo</h5>
+                            <p class="card-text">Perfecto para disfrutar solo o en pareja</p>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="fw-bold text-primary">G. 7.500</span>
+                                <button class="btn btn-primary btn-sm add-to-cart">Agregar</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="product-card">
+                        <img src="{% static 'images/Productos/kilo.jpg' %}" class="product-img w-100" alt="1/2 kg">
+                        <div class="card-body">
+                            <h5 class="card-title">1/2 Kilo</h5>
+                            <p class="card-text">Ideal para compartir en familia</p>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="fw-bold text-primary">G. 15.000</span>
+                                <button class="btn btn-primary btn-sm add-to-cart">Agregar</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="product-card">
+                        <img src="{% static 'images/Productos/kilo.jpg' %}" class="product-img w-100" alt="1 kg">
+                        <div class="card-body">
+                            <h5 class="card-title">1 Kilo</h5>
+                            <p class="card-text">Para fiestas y celebraciones especiales</p>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="fw-bold text-primary">G. 30.000</span>
+                                <button class="btn btn-primary btn-sm add-to-cart">Agregar</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Sabores -->
+    <section id="sabores" class="py-5">
+        <div class="container">
+            <h2 class="section-title">Nuestros Sabores</h2>
+            <p class="text-center mb-5">Descubre nuestra amplia variedad de sabores artesanales, elaborados con los mejores ingredientes.</p>
+            <div class="row">
+                <!-- Chocolate -->
+                <div class="col-lg-4 col-md-6">
+                    <div class="flavor-card">
+                        <img src="{% static 'images/Sabores/chocolate.jpg' %}" class="flavor-img" alt="Helado de Chocolate">
+                        <div class="flavor-card-body">
+                            <div class="flavor-name">Chocolate</div>
+                            <div class="flavor-description">Intenso y cremoso, elaborado con cacao premium</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Granizado -->
+                <div class="col-lg-4 col-md-6">
+                    <div class="flavor-card">
+                        <img src="{% static 'images/Sabores/granizado.jpg' %}" class="flavor-img" alt="Helado Granizado">
+                        <div class="flavor-card-body">
+                            <div class="flavor-name">Granizado</div>
+                            <div class="flavor-description">Helado de vainilla con trocitos crocantes de chocolate</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Dulce de Leche -->
+                <div class="col-lg-4 col-md-6">
+                    <div class="flavor-card">
+                        <img src="{% static 'images/Sabores/dulce-de-leche.jpg' %}" class="flavor-img" alt="Helado de Dulce de Leche">
+                        <div class="flavor-card-body">
+                            <div class="flavor-name">Dulce de Leche</div>
+                            <div class="flavor-description">Nuestro clásico sabor que no puede faltar, suave y dulce</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Frutilla -->
+                <div class="col-lg-4 col-md-6">
+                    <div class="flavor-card">
+                        <img src="{% static 'images/Sabores/frutilla.jpg' %}" class="flavor-img" alt="Helado de Frutilla">
+                        <div class="flavor-card-body">
+                            <div class="flavor-name">Frutilla</div>
+                            <div class="flavor-description">Elaborado con frutillas, fresco y frutal</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Vainilla -->
+                <div class="col-lg-4 col-md-6">
+                    <div class="flavor-card">
+                        <img src="{% static 'images/Sabores/vainilla.jpg' %}" class="flavor-img" alt="Helado de Vainilla">
+                        <div class="flavor-card-body">
+                            <div class="flavor-name">Vainilla</div>
+                            <div class="flavor-description">Vainilla auténtica, suave y aromática</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Piña -->
+                <div class="col-lg-4 col-md-6">
+                    <div class="flavor-card">
+                        <img src="{% static 'images/Sabores/pina.jpg' %}" class="flavor-img" alt="Helado de Piña">
+                        <div class="flavor-card-body">
+                            <div class="flavor-name">Piña</div>
+                            <div class="flavor-description">Refrescante y suave sabor a piña con un toque especial</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Limón -->
+                <div class="col-lg-4 col-md-6">
+                    <div class="flavor-card">
+                        <img src="{% static 'images/Sabores/limon.jpg' %}" class="flavor-img" alt="Helado de Limón">
+                        <div class="flavor-card-body">
+                            <div class="flavor-name">Limón</div>
+                            <div class="flavor-description">Refrescante y cítrico, perfecto para días calurosos</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Menta Granizada -->
+                <div class="col-lg-4 col-md-6">
+                    <div class="flavor-card">
+                        <img src="{% static 'images/Sabores/menta.jpg' %}" class="flavor-img" alt="Helado de Menta Granizada">
+                        <div class="flavor-card-body">
+                            <div class="flavor-name">Menta Granizada</div>
+                            <div class="flavor-description">Menta refrescante con trozos de chocolate</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Pistacho -->
+                <div class="col-lg-4 col-md-6">
+                    <div class="flavor-card">
+                        <img src="{% static 'images/Sabores/pistacho.jpg' %}" class="flavor-img" alt="Helado Pistacho">
+                        <div class="flavor-card-body">
+                            <div class="flavor-name">Pistacho</div>
+                            <div class="flavor-description">Pistacho con mani y nueces</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Crema Americana -->
+                <div class="col-lg-4 col-md-6">
+                    <div class="flavor-card">
+                        <img src="{% static 'images/Sabores/crema-americana.jpg' %}" class="flavor-img" alt="Helado de Crema Americana">
+                        <div class="flavor-card-body">
+                            <div class="flavor-name">Crema Americana</div>
+                            <div class="flavor-description">Crema Americana con mermelada de frutos rojos</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Frutos del Bosque -->
+                <div class="col-lg-4 col-md-6">
+                    <div class="flavor-card">
+                        <img src="{% static 'images/Sabores/frutos-del-bosque.jpg' %}" class="flavor-img" alt="Helado de Frutos del Bosque">
+                        <div class="flavor-card-body">
+                            <div class="flavor-name">Frutos del Bosque</div>
+                            <div class="flavor-description">Mezcla de frutos rojos, agridulce y refrescante</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Banana Split -->
+                <div class="col-lg-4 col-md-6">
+                    <div class="flavor-card">
+                        <img src="{% static 'images/Sabores/banana-split.jpg' %}" class="flavor-img" alt="Helado Banana Split">
+                        <div class="flavor-card-body">
+                            <div class="flavor-name">Banana Split</div>
+                            <div class="flavor-description">Plátano, chocolate y dulce de leche en perfecta armonía</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contacto -->
+    <section id="contacto" class="contact-section">
+        <div class="container">
+            <h2 class="section-title">Visítanos</h2>
+            <div class="row">
+                <div class="col-lg-6 mb-4">
+                    <div class="bg-white p-4 rounded-3 shadow-sm h-100">
+                        <h4 class="mb-4">Información de Contacto</h4>
+                        <p><i class="bi bi-geo-alt-fill me-2 text-primary"></i> San José de los Arroyos, Paraguay</p>
+                        <p><i class="bi bi-telephone-fill me-2 text-primary"></i> (0984) 236-667</p>
+                        <p><i class="bi bi-envelope-fill me-2 text-primary"></i> infohwili@gmail.com</p>
+                        <p><i class="bi bi-clock-fill me-2 text-primary"></i> Lunes a Viernes: 9:00 - 20:00</p>
+                        <p><i class="bi bi-clock-fill me-2 text-primary"></i> Sábados: 9:00 - 22:00</p>
+                        <p><i class="bi bi-clock-fill me-2 text-primary"></i> Domingos: 10:00 - 21:00</p>
+                        
+                        <div class="mt-4">
+                            <a href="#" class="social-icon"><i class="bi bi-facebook"></i></a>
+                            <a href="#" class="social-icon"><i class="bi bi-instagram"></i></a>
+                            <a href="#" class="social-icon"><i class="bi bi-whatsapp"></i></a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="map-container h-100">
+                        <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3601.135831357299!2d-56.73173468497806!3d-25.48196648375564!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x945eba58b2dcee7b%3A0x1a5f8e9b3b0e3b1a!2sSan%20Jos%C3%A9%20de%20los%20Arroyos%2C%20Paraguay!5e0!3m2!1ses!2ses!4v1620000000000!5m2!1ses!2ses" width="100%" height="300" style="border:0;" allowfullscreen="" loading="lazy"></iframe>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Información adicional -->
+    <div class="container">
+        <div class="flavor-detail mt-5">
+            <div class="row">
+                <div class="col-md-6">
+                    <h3 class="mb-4">Nuestros Ingredientes</h3>
+                    <p>Todos nuestros helados son elaborados artesanalmente con ingredientes 100% naturales:</p>
+                    <ul class="flavor-features">
+                        <li><i class="bi bi-check-circle-fill"></i> Leche fresca de la mejor calidad</li>
+                        <li><i class="bi bi-check-circle-fill"></i> Frutas naturales de temporada</li>
+                        <li><i class="bi bi-check-circle-fill"></i> Cacao premium para nuestros chocolates</li>
+                        <li><i class="bi bi-check-circle-fill"></i> Vainilla Bourbon natural</li>
+                        <li><i class="bi bi-check-circle-fill"></i> Sin conservantes ni colorantes artificiales</li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <h3 class="mb-4">¿Sabías que?</h3>
+                    <p>Nuestros helados mantienen la tradición familiar desde 1997, utilizando recetas que han pasado de generación en generación.</p>
+                    <p>Cada sabor es cuidadosamente desarrollado para ofrecer una experiencia única a nuestros clientes.</p>
+                    <p>¡Puedes combinar hasta 3 sabores diferentes en nuestros conos y potes!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+            
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="row">
+                <div class="col-lg-4 mb-4">
+                    <h5>Heladería Wili</h5>
+                    <p>Desde 1997 elaborando los mejores helados artesanales de San José de los Arroyos con ingredientes naturales y recetas tradicionales.</p>
+                </div>
+                <div class="col-lg-2 col-md-6 mb-4">
+                    <h5>Enlaces</h5>
+                    <ul class="list-unstyled">
+                        <li><a href="#" class="text-white text-decoration-none">Inicio</a></li>
+                        <li><a href="#categorias" class="text-white text-decoration-none">Categorías</a></li>
+                        <li><a href="#sabores" class="text-white text-decoration-none">Sabores</a></li>
+                        <li><a href="#contacto" class="text-white text-decoration-none">Contacto</a></li>
+                    </ul>
+                </div>
+                <div class="col-lg-3 col-md-6 mb-4">
+                    <h5>Categorías</h5>
+                    <ul class="list-unstyled">
+                        <li><a href="#" class="text-white text-decoration-none" data-category="kilo">Por Kilo</a></li>
+                        <li><a href="#" class="text-white text-decoration-none" data-category="cono">Conos</a></li>
+                        <li><a href="#" class="text-white text-decoration-none" data-category="paletas">Paletas</a></li>
+                        <li><a href="#" class="text-white text-decoration-none" data-category="torta">Torta Helada</a></li>
+                        <li><a href="#" class="text-white text-decoration-none" data-category="acai">Açaí</a></li>
+                        <li><a href="#" class="text-white text-decoration-none" data-category="preparados">Preparados</a></li>
+                    </ul>
+                </div>
+            </div>
+            <hr class="my-4">
+            <div class="text-center">
+                <p>&copy; 2025 Heladería Wili. Todos los derechos reservados.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Notificación de carrito -->
+    <div class="notification alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i> <span id="notification-text"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Funcionalidad para cambiar entre categorías de productos
+        document.querySelectorAll('.category-card, .footer a[data-category]').forEach(item => {
+            item.addEventListener('click', function() {
+                const category = this.getAttribute('data-category');
+                
+                // Ocultar todas las categorías de productos
+                document.querySelectorAll('section[id^="productos-"]').forEach(section => {
+                    section.style.display = 'none';
+                });
+                
+                // Mostrar la categoría seleccionada
+                const targetSection = document.getElementById(`productos-${category}`);
+                if (targetSection) {
+                    targetSection.style.display = 'block';
+                    
+                    // Desplazar suavemente a la sección
+                    targetSection.scrollIntoView({ behavior: 'smooth' });
+                }
+            });
+        });
+
+        // Funcionalidad para agregar productos al carrito
+        document.querySelectorAll('.add-to-cart').forEach(button => {
+            button.addEventListener('click', function() {
+                const productCard = this.closest('.product-card');
+                const productName = productCard.querySelector('.card-title').textContent;
+                
+                // Mostrar notificación
+                const notification = document.querySelector('.notification');
+                const notificationText = document.getElementById('notification-text');
+                notificationText.textContent = `¡Agregaste ${productName} al carrito!`;
+                notification.style.display = 'block';
+                
+                // Ocultar notificación después de 3 segundos
+                setTimeout(() => {
+                    notification.style.display = 'none';
+                }, 3000);
+            });
+        });
+
+        // Efecto de scroll suave para enlaces internos
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                
+                const targetId = this.getAttribute('href');
+                if (targetId === '#') return;
+                
+                const targetElement = document.querySelector(targetId);
+                if (targetElement) {
+                    targetElement.scrollIntoView({
+                        behavior: 'smooth'
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>
