@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% block title %}{{ accion }} Receta{% endblock %}
+
+{% block content %}
+<div class="container mt-4" style="max-width:500px;">
+    <h1 class="mb-4">{{ accion }} Receta</h1>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-danger">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+
+        <div class="mb-3">
+            <label class="form-label">Producto</label>
+            <select name="producto" class="form-select" required>
+                <option value="">Seleccioná un producto</option>
+                {% for producto in productos %}
+                    <option value="{{ producto.id }}"
+                        {% if receta.producto.id == producto.id %}selected{% endif %}>
+                        {{ producto.nombre }}
+                        ({{ producto.categoria.nombre }})
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Insumo requerido</label>
+            <select name="insumo" class="form-select" required>
+                <option value="">Seleccioná un insumo</option>
+                {% for insumo in insumos %}
+                    <option value="{{ insumo.id }}"
+                        {% if receta.insumo.id == insumo.id %}selected{% endif %}>
+                        {{ insumo.nombre }}
+                        ({{ insumo.unidad_medida.simbolo }}) —
+                        Stock: {{ insumo.stock_actual }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="mb-4">
+            <label class="form-label">Cantidad requerida por unidad</label>
+            <input type="number"
+                   name="cantidad_requerida"
+                   class="form-control"
+                   value="{{ receta.cantidad_requerida|default:'' }}"
+                   min="0" step="1" required>
+            <small class="text-muted">
+                Cantidad del insumo necesaria para producir 1 unidad del producto.
+                Ej: para 1 kg de helado se necesitan 2 litros de leche → poner 2.
+            </small>
+        </div>
+
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-success">
+                <i class="bi bi-check-circle"></i> {{ accion }} Receta
+            </button>
+            <a href="{% url 'gestion_recetas' %}"
+               class="btn btn-secondary">
+                Cancelar
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}

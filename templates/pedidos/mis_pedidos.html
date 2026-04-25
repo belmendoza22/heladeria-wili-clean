@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+{% block title %}Mis Pedidos{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">Mis Pedidos</h1>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert
+                {% if message.tags == 'success' %}alert-success
+                {% else %}alert-danger{% endif %}
+                alert-dismissible fade show">
+                {{ message }}
+                <button type="button" class="btn-close"
+                        data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    {% if pedidos %}
+        {% for pedido in pedidos %}
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center
+                {% if pedido.estado == 'entregado' %}bg-dark text-white
+                {% elif pedido.estado == 'cancelado' %}bg-danger text-white
+                {% elif pedido.estado == 'listo' %}bg-success text-white
+                {% elif pedido.estado == 'en_preparacion' %}bg-warning text-dark
+                {% else %}text-white{% endif %}"
+                style="{% if pedido.estado == 'pendiente' or pedido.estado == 'confirmado' %}background-color: #9b87f5;{% endif %}">
+                <h6 class="mb-0">
+                    <i class="bi bi-bag"></i> Pedido #{{ pedido.id }}
+                    <small class="ms-2 opacity-75">
+                        {{ pedido.fecha_pedido|date:"d/m/Y H:i" }}
+                    </small>
+                </h6>
+                <span class="badge bg-white
+                    {% if pedido.estado == 'entregado' %}text-dark
+                    {% elif pedido.estado == 'cancelado' %}text-danger
+                    {% elif pedido.estado == 'listo' %}text-success
+                    {% elif pedido.estado == 'en_preparacion' %}text-warning
+                    {% else %}text-primary{% endif %}">
+                    {{ pedido.get_estado_display }}
+                </span>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-2">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Producto</th>
+                                <th>Tamaño</th>
+                                <th>Cantidad</th>
+                                <th>Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for detalle in pedido.detalles.all %}
+                            <tr>
+                                <td>{{ detalle.producto.nombre }}</td>
+                                <td>{{ detalle.tamano.nombre|default:"—" }}</td>
+                                <td>{{ detalle.cantidad }}</td>
+                                <td>G. {{ detalle.subtotal }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <th colspan="3" class="text-end">Total:</th>
+                                <th class="text-success">G. {{ pedido.total }}</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+
+                {% if pedido.observaciones %}
+                    <p class="text-muted small mb-2">
+                        <i class="bi bi-chat-left-text"></i>
+                        {{ pedido.observaciones }}
+                    </p>
+                {% endif %}
+
+                <!-- Estado visual -->
+                <div class="mt-3">
+                    {% if pedido.estado == 'listo' %}
+                        <div class="alert alert-success py-2 px-3 mb-0">
+                            <i class="bi bi-check-circle-fill"></i>
+                            <strong>¡Tu pedido está listo para retirar!</strong>
+                        </div>
+                    {% elif pedido.estado == 'en_preparacion' %}
+                        <div class="alert alert-warning py-2 px-3 mb-0">
+                            <i class="bi bi-clock"></i>
+                            Tu pedido está siendo preparado...
+                        </div>
+                    {% elif pedido.estado == 'entregado' %}
+                        <div class="alert alert-secondary py-2 px-3 mb-0">
+                            <i class="bi bi-bag-check"></i>
+                            Pedido entregado. ¡Gracias!
+                        </div>
+                    {% elif pedido.estado == 'cancelado' %}
+                        <div class="alert alert-danger py-2 px-3 mb-0">
+                            <i class="bi bi-x-circle"></i>
+                            Pedido cancelado.
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Acciones solo para pedidos pendientes -->
+                {% if pedido.estado == 'pendiente' %}
+                    <div class="d-flex gap-2 mt-3">
+                        <a href="{% url 'modificar_pedido' pedido.id %}"
+                           class="btn btn-warning btn-sm">
+                            <i class="bi bi-pencil"></i> Modificar pedido
+                        </a>
+                        <form method="post"
+                              action="{% url 'cancelar_pedido' pedido.id %}"
+                              onsubmit="return confirm('¿Cancelar este pedido?')">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-danger btn-sm">
+                                <i class="bi bi-x-circle"></i> Cancelar pedido
+                            </button>
+                        </form>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-bag-x" style="font-size:4rem; color:#9b87f5;"></i>
+            <h4 class="mt-3 text-muted">No tenés pedidos todavía</h4>
+            <a href="{% url 'menu' %}" class="btn btn-primary mt-3">
+                <i class="bi bi-shop"></i> Ir al menú
+            </a>
+        </div>
+    {% endif %}
+
+    <a href="{% url 'menu' %}" class="btn btn-secondary mt-2">
+        <i class="bi bi-arrow-left"></i> Volver al menú
+    </a>
+</div>
+{% endblock %}

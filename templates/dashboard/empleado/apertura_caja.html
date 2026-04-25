@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block title %}Apertura de Caja{% endblock %}
+
+{% block content %}
+<div class="container mt-4" style="max-width:500px;">
+    <h1 class="mb-4">Apertura de Caja</h1>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-warning">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="card">
+        <div class="card-body">
+            <p class="text-muted mb-4">
+                Ingresá el monto inicial en caja para comenzar el turno.
+            </p>
+            <form method="post">
+                {% csrf_token %}
+                <div class="mb-4">
+                    <label class="form-label">Monto inicial (Gs.)</label>
+                    <input type="number" name="monto_inicial"
+                           class="form-control form-control-lg"
+                           placeholder="0" min="0" required>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-success w-100">
+                        <i class="bi bi-lock-fill"></i> Abrir caja
+                    </button>
+                    <a href="{% url 'empleado_home' %}"
+                       class="btn btn-secondary">
+                        Cancelar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

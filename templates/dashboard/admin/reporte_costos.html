@@ -1,0 +1,126 @@
+{% extends 'base.html' %}
+{% block title %}Costos y Ganancias{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Costos y Ganancias</h1>
+        <a href="{% url 'reportes' %}" class="btn btn-secondary btn-sm">
+            <i class="bi bi-arrow-left"></i> Volver
+        </a>
+    </div>
+
+    <!-- Filtro por mes -->
+    <form method="get" class="card p-3 mb-4">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label">Mes</label>
+                <select name="mes" class="form-select">
+                    {% for num, nombre in meses %}
+                        <option value="{{ num }}"
+                            {% if num == mes_actual %}selected{% endif %}>
+                            {{ nombre }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Año</label>
+                <input type="number" name="anio" class="form-control"
+                       value="{{ anio_actual }}" min="2020" max="2030">
+            </div>
+            <div class="col-md-4">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-search"></i> Ver reporte
+                </button>
+            </div>
+        </div>
+    </form>
+
+    <!-- Balance -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center border-success">
+                <div class="card-body">
+                    <h6 class="text-muted">Ventas totales</h6>
+                    <h4 class="text-success">G. {{ ventas_mes }}</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center border-danger">
+                <div class="card-body">
+                    <h6 class="text-muted">Compras de insumos</h6>
+                    <h4 class="text-danger">G. {{ compras_mes }}</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center border-warning">
+                <div class="card-body">
+                    <h6 class="text-muted">Otros egresos</h6>
+                    <h4 class="text-warning">G. {{ egresos_mes }}</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center
+                {% if ganancia >= 0 %}border-primary{% else %}border-danger{% endif %}">
+                <div class="card-body">
+                    <h6 class="text-muted">Ganancia neta</h6>
+                    <h4 class="{% if ganancia >= 0 %}text-primary{% else %}text-danger{% endif %}">
+                        G. {{ ganancia }}
+                    </h4>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla resumen -->
+    <div class="card">
+        <div class="card-header bg-dark text-white">
+            <h5 class="mb-0">Resumen del mes</h5>
+        </div>
+        <div class="card-body">
+            <table class="table table-sm mb-0">
+                <tbody>
+                    <tr>
+                        <td>Ventas totales</td>
+                        <td class="text-end text-success fw-bold">
+                            G. {{ ventas_mes }}
+                        </td>
+                        <td class="text-end text-success">100%</td>
+                    </tr>
+                    <tr>
+                        <td>Compras de insumos</td>
+                        <td class="text-end text-danger">
+                            — G. {{ compras_mes }}
+                        </td>
+                        <td class="text-end text-muted">
+                            {% if ventas_mes > 0 %}
+                                {{ compras_mes|floatformat:0 }}
+                            {% else %}0{% endif %}%
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Otros egresos</td>
+                        <td class="text-end text-danger">
+                            — G. {{ egresos_mes }}
+                        </td>
+                        <td class="text-end text-muted">—</td>
+                    </tr>
+                    <tr class="table-dark">
+                        <td><strong>Ganancia neta</strong></td>
+                        <td class="text-end fw-bold
+                            {% if ganancia >= 0 %}text-success
+                            {% else %}text-danger{% endif %}">
+                            G. {{ ganancia }}
+                        </td>
+                        <td class="text-end">—</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

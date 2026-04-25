@@ -1,0 +1,179 @@
+{% extends 'base.html' %}
+{% block title %}Vista de Despacho{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Vista de Despacho</h1>
+        <div class="d-flex gap-2 align-items-center">
+            <span class="badge bg-warning text-dark fs-6">
+                {{ pedidos|length }} pedido(s) activo(s)
+            </span>
+            <button class="btn btn-outline-secondary btn-sm"
+                    onclick="location.reload()">
+                <i class="bi bi-arrow-clockwise"></i> Actualizar
+            </button>
+            <a href="{% url 'empleado_home' %}" class="btn btn-secondary btn-sm">
+                <i class="bi bi-arrow-left"></i> Volver
+            </a>
+        </div>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-success alert-dismissible fade show">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    {% if pedidos %}
+    <div class="row">
+        {% for pedido in pedidos %}
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 shadow
+                {% if pedido.estado == 'en_preparacion' %}
+                    border-warning
+                {% else %}
+                    border-primary
+                {% endif %}">
+
+                <!-- Header de la tarjeta -->
+                <div class="card-header d-flex justify-content-between align-items-center
+                    {% if pedido.estado == 'en_preparacion' %}
+                        bg-warning text-dark
+                    {% else %}
+                        bg-primary text-white
+                    {% endif %}">
+                    <h5 class="mb-0">Pedido #{{ pedido.id }}</h5>
+                    <span class="badge bg-white
+                        {% if pedido.estado == 'en_preparacion' %}
+                            text-warning
+                        {% else %}
+                            text-primary
+                        {% endif %}">
+                        {{ pedido.get_estado_display }}
+                    </span>
+                </div>
+
+                <div class="card-body">
+                    <!-- Info del pedido -->
+                    <div class="mb-3">
+                        <p class="mb-1">
+                            <i class="bi bi-person"></i>
+                            <strong>
+                                {{ pedido.cliente.get_full_name|default:pedido.cliente.username|default:"Sin cliente" }}
+                            </strong>
+                        </p>
+                        <p class="mb-1 text-muted small">
+                            <i class="bi bi-clock"></i>
+                            {{ pedido.fecha_pedido|date:"H:i" }} hs —
+                            {{ pedido.get_tipo_pedido_display }}
+                        </p>
+                        {% if pedido.observaciones %}
+                            <div class="alert alert-info py-1 px-2 mb-0 small">
+                                <i class="bi bi-chat-left-text"></i>
+                                {{ pedido.observaciones }}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Productos -->
+                    <h6 class="border-bottom pb-2">Productos</h6>
+                    <ul class="list-unstyled">
+                        {% for detalle in pedido.detalles.all %}
+                        <li class="d-flex justify-content-between mb-2">
+                            <div>
+                                <span class="badge bg-secondary me-1">
+                                    x{{ detalle.cantidad }}
+                                </span>
+                                <strong>{{ detalle.producto.nombre }}</strong>
+                                {% if detalle.tamano %}
+                                    <small class="text-muted">
+                                        — {{ detalle.tamano.nombre }}
+                                    </small>
+                                {% endif %}
+                                {% if detalle.observaciones %}
+                                    <br>
+                                    <small class="text-info">
+                                        <i class="bi bi-chat-left-text"></i>
+                                        {{ detalle.observaciones }}
+                                    </small>
+                                {% endif %}
+                            </div>
+                            <small class="text-muted">
+                                G. {{ detalle.subtotal }}
+                            </small>
+                        </li>
+                        {% endfor %}
+                    </ul>
+
+                    <div class="border-top pt-2 d-flex justify-content-between">
+                        <strong>Total:</strong>
+                        <strong class="text-success">G. {{ pedido.total }}</strong>
+                    </div>
+                </div>
+
+                <!-- Botones de acción -->
+                <div class="card-footer">
+                    {% if pedido.estado == 'confirmado' %}
+                        <form method="post"
+                              action="{% url 'actualizar_estado_pedido' pedido.id %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="estado" value="en_preparacion">
+                            <button type="submit" class="btn btn-warning w-100">
+                                <i class="bi bi-clock"></i> Iniciar preparación
+                            </button>
+                        </form>
+                    {% elif pedido.estado == 'en_preparacion' %}
+                        <form method="post"
+                              action="{% url 'actualizar_estado_pedido' pedido.id %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="estado" value="listo">
+                            <button type="submit" class="btn btn-success w-100">
+                                <i class="bi bi-check-circle"></i> Marcar como listo
+                            </button>
+                        </form>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% else %}
+    <div class="text-center py-5">
+        <i class="bi bi-check-circle text-success" style="font-size: 4rem;"></i>
+        <h3 class="mt-3 text-muted">No hay pedidos pendientes</h3>
+        <p class="text-muted">Todos los pedidos están al día.</p>
+        <a href="{% url 'registrar_pedido' %}" class="btn btn-primary mt-2">
+            <i class="bi bi-plus-circle"></i> Registrar nuevo pedido
+        </a>
+    </div>
+    {% endif %}
+
+    <!-- Agregar esta tarjeta en el row -->
+    <div class="col-md-4">
+        <div class="card mb-3">
+            <div class="card-body">
+                <h5 class="card-title">Vista de despacho</h5>
+                <p class="card-text">Pedidos en preparación</p>
+                <a href="{% url 'vista_despacho' %}" class="btn btn-warning btn-sm">
+                    <i class="bi bi-display"></i> Ver despacho
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Auto-actualizar cada 30 segundos
+    setTimeout(function() {
+        location.reload();
+    }, 30000);
+</script>
+{% endblock %}

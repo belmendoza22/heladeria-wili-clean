@@ -56,9 +56,11 @@ class SignUpForm(UserCreationForm):
         user.last_name = self.cleaned_data['last_name']
         if commit:
             user.save()
-            # Crear o actualizar el perfil
             profile, created = Profile.objects.get_or_create(user=user)
             profile.phone = self.cleaned_data['phone']
             profile.address = self.cleaned_data['address']
+            from .models import Rol
+            rol_cliente, _ = Rol.objects.get_or_create(nombre='Cliente')
+            profile.rol = rol_cliente
             profile.save()
         return user

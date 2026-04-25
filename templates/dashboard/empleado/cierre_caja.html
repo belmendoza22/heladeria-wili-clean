@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+{% block title %}Cierre de Caja{% endblock %}
+
+{% block content %}
+<div class="container mt-4" style="max-width:600px;">
+    <h1 class="mb-4">Cierre de Caja #{{ caja.id }}</h1>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-danger">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Resumen antes del cierre -->
+    <div class="card mb-4">
+        <div class="card-header bg-dark text-white">
+            <h5 class="mb-0">Resumen del día</h5>
+        </div>
+        <div class="card-body">
+            <div class="row text-center">
+                <div class="col-4">
+                    <p class="text-muted small mb-1">Monto inicial</p>
+                    <h5>G. {{ caja.monto_inicial }}</h5>
+                </div>
+                <div class="col-4">
+                    <p class="text-muted small mb-1">Total ingresos</p>
+                    <h5 class="text-success">G. {{ total_ingresos }}</h5>
+                </div>
+                <div class="col-4">
+                    <p class="text-muted small mb-1">Total egresos</p>
+                    <h5 class="text-danger">G. {{ total_egresos }}</h5>
+                </div>
+            </div>
+            <hr>
+            <div class="text-center">
+                <p class="text-muted small mb-1">Balance según sistema</p>
+                <h3 class="text-primary">G. {{ balance_sistema }}</h3>
+            </div>
+        </div>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="mb-4">
+            <label class="form-label fw-bold">
+                Monto contado en caja (Gs.)
+            </label>
+            <input type="number" name="monto_contado"
+                   class="form-control form-control-lg"
+                   placeholder="0" min="0" required>
+            <small class="text-muted">
+                Ingresá el monto real que contaste en la caja.
+            </small>
+        </div>
+
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            Esta acción cerrará la caja y no podrás registrar más movimientos.
+        </div>
+
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-danger w-100"
+                    onclick="return confirm('¿Confirmar cierre de caja?')">
+                <i class="bi bi-lock-fill"></i> Confirmar cierre
+            </button>
+            <a href="{% url 'gestion_caja' %}" class="btn btn-secondary">
+                Cancelar
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}

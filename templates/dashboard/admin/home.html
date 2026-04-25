@@ -1,0 +1,223 @@
+{% extends 'base.html' %}
+{% block title %}Panel de Administración{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">Panel de Administración</h1>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-success alert-dismissible fade show">
+                {{ message }}
+                <button type="button" class="btn-close"
+                        data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    {% if alertas_count > 0 %}
+    <div class="alert alert-warning d-flex align-items-center gap-2 mb-4">
+        <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+        <div>
+            <strong>{{ alertas_count }} insumo(s) con stock bajo.</strong>
+            {% for alerta in alertas_stock %}
+                <span class="badge bg-warning text-dark me-1">
+                    {{ alerta.nombre }}: {{ alerta.stock_actual }}
+                </span>
+            {% endfor %}
+            <a href="{% url 'control_stock' %}" class="alert-link ms-2">
+                Ver inventario
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Tarjetas de resumen -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-white mb-3"
+                 style="background-color:#9b87f5;">
+                <div class="card-body">
+                    <h5 class="card-title">Pedidos hoy</h5>
+                    <p class="card-text display-6">{{ pedidos_hoy }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-warning mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Pendientes</h5>
+                    <p class="card-text display-6">{{ pedidos_pendientes }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white mb-3
+                {% if insumos_bajos > 0 %}bg-danger{% else %}bg-success{% endif %}">
+                <div class="card-body">
+                    <h5 class="card-title">Stock bajo</h5>
+                    <p class="card-text display-6">{{ insumos_bajos }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-dark mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Usuarios</h5>
+                    <p class="card-text display-6">{{ total_usuarios }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Accesos rápidos -->
+    <h5 class="mb-3">Gestión</h5>
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card panel-card h-100">
+                <div class="card-body text-center py-4">
+                    <i class="bi bi-box-seam fs-1"
+                       style="color:#9b87f5;"></i>
+                    <h6 class="mt-2">Productos</h6>
+                    <a href="{% url 'gestion_productos' %}"
+                       class="btn btn-sm btn-primary mt-2">
+                        Gestionar
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card panel-card h-100">
+                <div class="card-body text-center py-4">
+                    <i class="bi bi-archive fs-1"
+                       style="color:#1D9E75;"></i>
+                    <h6 class="mt-2">Insumos</h6>
+                    <a href="{% url 'gestion_insumos' %}"
+                       class="btn btn-sm btn-success mt-2">
+                        Gestionar
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card panel-card h-100">
+                <div class="card-body text-center py-4">
+                    <i class="bi bi-bar-chart fs-1"
+                       style="color:#EF9F27;"></i>
+                    <h6 class="mt-2">Stock</h6>
+                    <a href="{% url 'control_stock' %}"
+                       class="btn btn-sm btn-warning mt-2">
+                        Ver stock
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card panel-card h-100">
+                <div class="card-body text-center py-4">
+                    <i class="bi bi-truck fs-1"
+                       style="color:#378ADD;"></i>
+                    <h6 class="mt-2">Proveedores</h6>
+                    <a href="{% url 'gestion_proveedores' %}"
+                       class="btn btn-sm btn-info mt-2">
+                        Gestionar
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card panel-card h-100">
+                <div class="card-body text-center py-4">
+                    <i class="bi bi-bag fs-1"
+                       style="color:#E24B4A;"></i>
+                    <h6 class="mt-2">Pedidos</h6>
+                    <a href="{% url 'gestion_pedidos' %}"
+                       class="btn btn-sm btn-danger mt-2">
+                        Ver pedidos
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card panel-card h-100">
+                <div class="card-body text-center py-4">
+                    <i class="bi bi-people fs-1"
+                       style="color:#9b87f5;"></i>
+                    <h6 class="mt-2">Usuarios</h6>
+                    <a href="{% url 'gestion_usuarios' %}"
+                       class="btn btn-sm mt-2"
+                       style="background-color:#9b87f5; color:white;">
+                        Gestionar
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card panel-card h-100">
+                <div class="card-body text-center py-4">
+                    <i class="bi bi-tag fs-1"
+                       style="color:#1D9E75;"></i>
+                    <h6 class="mt-2">Promociones</h6>
+                    <a href="{% url 'gestion_promociones' %}"
+                       class="btn btn-sm btn-success mt-2">
+                        Gestionar
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card panel-card h-100">
+                <div class="card-body text-center py-4">
+                    <i class="bi bi-graph-up fs-1"
+                       style="color:#EF9F27;"></i>
+                    <h6 class="mt-2">Reportes</h6>
+                    <a href="{% url 'reportes' %}"
+                       class="btn btn-sm btn-warning mt-2">
+                        Ver reportes
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card panel-card h-100">
+                <div class="card-body text-center py-4">
+                    <i class="bi bi-clipboard-data fs-1" style="color:#1D9E75;"></i>
+                    <h6 class="mt-2">Stock producible</h6>
+                    <a href="{% url 'stock_producible' %}"
+                    class="btn btn-sm btn-success mt-2">
+                        Ver
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card panel-card h-100">
+                <div class="card-body text-center py-4">
+                    <i class="bi bi-journal-text fs-1" style="color:#7b68ee;"></i>
+                    <h6 class="mt-2">Recetas</h6>
+                    <a href="{% url 'gestion_recetas' %}"
+                    class="btn btn-sm mt-2"
+                    style="background-color:#7b68ee; color:white;">
+                        Gestionar
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card panel-card h-100">
+                <div class="card-body text-center py-4">
+                    <i class="bi bi-gear-fill fs-1" style="color:#E24B4A;"></i>
+                    <h6 class="mt-2">Producción</h6>
+                    <p class="text-muted small">
+                        Registrar producción de helados
+                    </p>
+                    <a href="{% url 'registrar_produccion' %}"
+                    class="btn btn-sm btn-danger mt-2">
+                        Registrar
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

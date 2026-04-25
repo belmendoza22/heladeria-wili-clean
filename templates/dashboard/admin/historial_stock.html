@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% block title %}Historial de Stock{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">Historial de Movimientos</h1>
+
+    <form method="get" class="d-flex gap-2 mb-4">
+        <select name="insumo_id" class="form-select" style="max-width: 300px;">
+            <option value="">Seleccioná un insumo</option>
+            {% for insumo in insumos %}
+                <option value="{{ insumo.id }}"
+                    {% if insumo_seleccionado.id == insumo.id %}selected{% endif %}>
+                    {{ insumo.nombre }}
+                </option>
+            {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-primary">
+            <i class="bi bi-search"></i> Ver historial
+        </button>
+    </form>
+
+    {% if insumo_seleccionado %}
+        <h5>Historial de: <strong>{{ insumo_seleccionado.nombre }}</strong></h5>
+        <p class="text-muted">
+            Stock actual:
+            <strong>
+                {{ insumo_seleccionado.stock_actual }}
+                {{ insumo_seleccionado.unidad_medida.simbolo }}
+            </strong>
+        </p>
+
+        <div class="table-responsive">
+            <table class="table table-bordered align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Proveedor</th>
+                        <th>Cantidad</th>
+                        <th>Precio unitario</th>
+                        <th>Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for detalle in detalles %}
+                    <tr>
+                        <td>{{ detalle.compra.fecha|date:"d/m/Y H:i" }}</td>
+                        <td>{{ detalle.compra.proveedor.nombre }}</td>
+                        <td class="text-success">
+                            +{{ detalle.cantidad }}
+                            {{ insumo_seleccionado.unidad_medida.simbolo }}
+                        </td>
+                        <td>G. {{ detalle.precio_unitario }}</td>
+                        <td>
+                            G. {{ detalle.cantidad|floatformat:0 }}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted">
+                            No hay movimientos registrados para este insumo.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+
+    <a href="{% url 'control_stock' %}" class="btn btn-secondary mt-3">
+        <i class="bi bi-arrow-left"></i> Volver al stock
+    </a>
+</div>
+{% endblock %}

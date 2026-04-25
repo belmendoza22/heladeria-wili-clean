@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+{% block title %}Stock Producible{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Stock Producible por Receta</h1>
+        <a href="{% url 'control_stock' %}" class="btn btn-secondary btn-sm">
+            <i class="bi bi-arrow-left"></i> Volver
+        </a>
+    </div>
+
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle-fill"></i>
+        Esta tabla muestra cuántas unidades de cada producto se pueden
+        producir según los insumos disponibles en stock.
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-success alert-dismissible fade show">
+                {{ message }}
+                <button type="button" class="btn-close"
+                        data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th>Producto</th>
+                    <th>Categoría</th>
+                    <th>Stock físico actual</th>
+                    <th>Producible según insumos</th>
+                    <th>Limitado por</th>
+                    <th>Actualizar stock</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in resultado %}
+                <tr>
+                    <td><strong>{{ item.producto.nombre }}</strong></td>
+                    <td>{{ item.producto.categoria.nombre }}</td>
+                    <td>
+                        <span class="badge
+                            {% if item.producto.stock <= 0 %}bg-danger
+                            {% elif item.producto.stock <= 5 %}bg-warning text-dark
+                            {% else %}bg-success{% endif %}">
+                            {{ item.producto.stock }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if item.sin_receta %}
+                            <span class="text-muted small">Sin receta cargada</span>
+                        {% else %}
+                            <span class="badge
+                                {% if item.stock_producible <= 0 %}bg-danger
+                                {% elif item.stock_producible <= 5 %}bg-warning text-dark
+                                {% else %}bg-primary{% endif %}">
+                                {{ item.stock_producible }} veces
+                            </span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if item.limitado_por %}
+                            <small class="text-muted">
+                                <i class="bi bi-exclamation-triangle"></i>
+                                {{ item.limitado_por }}
+                            </small>
+                        {% else %}
+                            <small class="text-muted">—</small>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <form method="post"
+                              action="{% url 'actualizar_stock_producto' item.producto.id %}"
+                              class="d-flex gap-2 align-items-center">
+                            {% csrf_token %}
+                            <input type="number"
+                                   name="stock"
+                                   class="form-control form-control-sm"
+                                   style="width:80px;"
+                                   value="{{ item.producto.stock }}"
+                                   min="0">
+                            <button type="submit"
+                                    class="btn btn-sm btn-primary">
+                                <i class="bi bi-check"></i>
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

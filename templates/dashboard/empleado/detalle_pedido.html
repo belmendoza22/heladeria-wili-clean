@@ -1,0 +1,149 @@
+{% extends 'base.html' %}
+{% block title %}Detalle Pedido #{{ pedido.id }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4" style="max-width:750px;">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Pedido #{{ pedido.id }}</h1>
+        <span class="badge fs-6
+            {% if pedido.estado == 'pendiente' %}bg-secondary
+            {% elif pedido.estado == 'confirmado' %}bg-primary
+            {% elif pedido.estado == 'en_preparacion' %}bg-warning text-dark
+            {% elif pedido.estado == 'listo' %}bg-success
+            {% elif pedido.estado == 'entregado' %}bg-dark
+            {% elif pedido.estado == 'cancelado' %}bg-danger
+            {% endif %}">
+            {{ pedido.get_estado_display }}
+        </span>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>Cliente:</strong>
+                        {% if pedido.cliente %}
+                            {{ pedido.cliente.get_full_name|default:pedido.cliente.username }}
+                        {% else %}
+                            Sin cliente
+                        {% endif %}
+                    </p>
+                    <p><strong>Tipo:</strong>
+                        {{ pedido.get_tipo_pedido_display }}
+                    </p>
+                </div>
+                <div class="col-md-6">
+                    <p><strong>Fecha:</strong>
+                        {{ pedido.fecha_pedido|date:"d/m/Y H:i" }}
+                    </p>
+                    <p><strong>Registrado por:</strong>
+                        <p><strong>Registrado por:</strong>
+                            {% if pedido.empleado_cajero %}
+                                {{ pedido.empleado_cajero.get_full_name|default:pedido.empleado_cajero.username }}
+                            {% else %}
+                                Pedido online
+                            {% endif %}
+                        </p>
+                    </p>
+                </div>
+            </div>
+            {% if pedido.observaciones %}
+                <p><strong>Observaciones:</strong> {{ pedido.observaciones }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <h5 class="mb-3">Productos</h5>
+    <div class="table-responsive mb-4">
+        <table class="table table-bordered align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Producto</th>
+                    <th>Tamaño</th>
+                    <th>Cantidad</th>
+                    <th>Precio unitario</th>
+                    <th>Subtotal</th>
+                    <th>Obs.</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for detalle in detalles %}
+                <tr>
+                    <td>{{ detalle.producto.nombre }}</td>
+                    <td>{{ detalle.tamano.nombre|default:"—" }}</td>
+                    <td>{{ detalle.cantidad }}</td>
+                    <td>G. {{ detalle.precio_unitario }}</td>
+                    <td>G. {{ detalle.subtotal }}</td>
+                    <td>{{ detalle.observaciones|default:"—" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <th colspan="4" class="text-end">Total:</th>
+                    <th>G. {{ pedido.total }}</th>
+                    <th></th>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <!-- Cambiar estado -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h6 class="card-title">Actualizar estado</h6>
+            <form method="post"
+                  action="{% url 'actualizar_estado_pedido' pedido.id %}"
+                  class="d-flex gap-2">
+                {% csrf_token %}
+                <select name="estado" class="form-select" style="max-width:250px;">
+                    {% for valor, nombre in pedido.ESTADOS %}
+                        <option value="{{ valor }}"
+                            {% if pedido.estado == valor %}selected{% endif %}>
+                            {{ nombre }}
+                        </option>
+                    {% endfor %}
+
+                    {% if pedido.estado == 'listo' and not pedido.pago_confirmado %}
+                    <div class="alert alert-success d-flex justify-content-between align-items-center mb-3">
+                        <span>
+                            <i class="bi bi-check-circle-fill"></i>
+                            El pedido está listo — confirmá el pago para generar el ticket.
+                        </span>
+                        <a href="{% url 'confirmar_pago' pedido.id %}"
+                            class="btn btn-success btn-sm">
+                            <i class="bi bi-cash-coin"></i> Confirmar pago
+                        </a>
+                    </div>
+                    {% endif %}
+
+                    {% if pedido.pago_confirmado %}
+                    <div class="alert alert-secondary d-flex justify-content-between align-items-center mb-3">
+                        <span>
+                            <i class="bi bi-receipt"></i>
+                            Pago confirmado —
+                            {{ pedido.get_metodo_pago_display }}
+                        </span>
+                        <a href="{% url 'ticket_pedido' pedido.id %}"
+                            class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-printer"></i> Ver ticket
+                        </a>
+                    </div>
+                    {% endif %}
+                    
+                </select>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check"></i> Actualizar
+                </button>
+                <p><strong>Última actualización:</strong>
+                    {{ pedido.fecha_actualizacion|date:"d/m/Y H:i" }}
+                </p>
+            </form>
+        </div>
+    </div>
+
+    <a href="{% url 'gestion_pedidos' %}" class="btn btn-secondary">
+        <i class="bi bi-arrow-left"></i> Volver a pedidos
+    </a>
+</div>
+{% endblock %}

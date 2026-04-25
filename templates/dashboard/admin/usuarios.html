@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+{% block title %}Gestión de Usuarios{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Gestión de Usuarios</h1>
+        <a href="{% url 'crear_usuario' %}" class="btn btn-success">
+            <i class="bi bi-person-plus"></i> Nuevo Usuario
+        </a>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert
+                {% if message.tags == 'success' %}alert-success
+                {% else %}alert-danger{% endif %}
+                alert-dismissible fade show">
+                {{ message }}
+                <button type="button" class="btn-close"
+                        data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th>#</th>
+                    <th>Usuario</th>
+                    <th>Nombre</th>
+                    <th>Email</th>
+                    <th>Rol</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for usuario in usuarios %}
+                <tr>
+                    <td>{{ usuario.id }}</td>
+                    <td>
+                        <strong>{{ usuario.username }}</strong>
+                        {% if usuario == request.user %}
+                            <span class="badge bg-primary ms-1">Yo</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {{ usuario.get_full_name|default:"—" }}
+                    </td>
+                    <td>{{ usuario.email|default:"—" }}</td>
+                    <td>
+                        {% if usuario.profile.rol %}
+                            <span class="badge"
+                                  style="background-color:#9b87f5;">
+                                {{ usuario.profile.rol.nombre }}
+                            </span>
+                        {% else %}
+                            <span class="badge bg-secondary">Sin rol</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if usuario.is_active %}
+                            <span class="badge bg-success">Activo</span>
+                        {% else %}
+                            <span class="badge bg-danger">Inactivo</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{% url 'editar_usuario' usuario.id %}"
+                           class="btn btn-sm btn-warning">
+                            <i class="bi bi-pencil"></i> Editar
+                        </a>
+                        {% if usuario != request.user %}
+                        <form method="post"
+                              action="{% url 'eliminar_usuario' usuario.id %}"
+                              style="display:inline;"
+                              onsubmit="return confirm('¿Eliminar a {{ usuario.username }}?')">
+                            {% csrf_token %}
+                            <button type="submit"
+                                    class="btn btn-sm btn-danger">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center text-muted">
+                        No hay usuarios registrados.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary mt-3">
+        <i class="bi bi-arrow-left"></i> Volver al panel
+    </a>
+</div>
+{% endblock %}

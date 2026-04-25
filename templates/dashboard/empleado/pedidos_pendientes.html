@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+
+{% block title %}Pedidos pendientes{% endblock %}
+
+{% block content %}
+<h1>Pedidos pendientes de preparación</h1>
+<table class="table">
+    <thead>
+        <tr>
+            <th># Pedido</th>
+            <th>Cliente</th>
+            <th>Productos</th>
+            <th>Total</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for pedido in pedidos %}
+        <tr>
+            <td>{{ pedido.id }}</td>
+            <td>{{ pedido.cliente.username }}</td>
+            <td>
+                {% for detalle in pedido.detalles.all %}
+                    {{ detalle.cantidad }} x {{ detalle.producto.nombre }}<br>
+                {% endfor %}
+            </td>
+            <td>${{ pedido.total }}</td>
+            <td>
+                <form method="post"
+                    action="{% url 'actualizar_estado_pedido' pedido.id %}"
+                    style="display:inline;">
+                    {% csrf_token %}
+                    <input type="hidden" name="estado" value="en_preparacion">
+                    <button type="submit" class="btn btn-sm btn-warning">
+                        <i class="bi bi-clock"></i> En preparación
+                    </button>
+                </form>
+                <form method="post" 
+                    action="{% url 'actualizar_estado_pedido' pedido.id %}"
+                    style="display:inline;">
+                    {% csrf_token %}
+                    <input type="hidden" name="estado" value="listo">
+                    <button type="submit" class="btn btn-sm btn-success">
+                        <i class="bi bi-check-circle"></i> Marcar listo
+                    </button>
+                </form>
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5">No hay pedidos pendientes.</td></tr>
+        {% endfor %}
+    </tbody>
+    <a href="{% url 'empleado_home' %}" class="btn btn-secondary mt-3">
+        <i class="bi bi-arrow-left"></i> Volver al panel
+    </a>
+</table>
+{% endblock %}

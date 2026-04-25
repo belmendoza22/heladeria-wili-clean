@@ -1,0 +1,195 @@
+{% extends 'base.html' %}
+{% block title %}Registrar Producción{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Registrar Producción</h1>
+        <a href="{% url 'historial_produccion' %}"
+           class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-clock-history"></i> Historial
+        </a>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert
+                {% if message.tags == 'success' %}alert-success
+                {% else %}alert-danger{% endif %}
+                alert-dismissible fade show">
+                {{ message }}
+                <button type="button" class="btn-close"
+                        data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle-fill"></i>
+        Al registrar producción, el sistema descuenta los insumos usados
+        y suma las unidades producidas al stock de productos terminados.
+    </div>
+
+    <div class="row">
+        <!-- Formulario de producción -->
+        <div class="col-md-5">
+            <div class="card">
+                <div class="card-header text-white"
+                     style="background-color:#9b87f5;">
+                    <h5 class="mb-0">
+                        <i class="bi bi-plus-circle"></i>
+                        Nueva producción
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="formProduccion">
+                        {% csrf_token %}
+
+                        <div class="mb-3">
+                            <label class="form-label">Producto a producir</label>
+                            <select name="producto" id="selectProducto"
+                                    class="form-select" required>
+                                <option value="">Seleccioná un producto</option>
+                                {% for item in productos_con_info %}
+                                    <option value="{{ item.producto.id }}"
+                                            data-producible="{{ item.producible|default:0 }}"
+                                            data-limitante="{{ item.limitante|default:'' }}"
+                                            data-receta="{{ item.receta|length }}">
+                                        {{ item.producto.nombre }}
+                                        {% if item.producible is not None %}
+                                            (podés hacer {{ item.producible }})
+                                        {% else %}
+                                            (sin receta)
+                                        {% endif %}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-3" id="infoProducible"
+                             style="display:none;">
+                            <div class="alert alert-primary py-2 mb-0">
+                                <i class="bi bi-calculator"></i>
+                                Podés producir hasta
+                                <strong id="maxProducible">0</strong>
+                                unidades.
+                                <br>
+                                <small class="text-muted">
+                                    Limitado por:
+                                    <span id="insumoLimitante"></span>
+                                </small>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">
+                                Cantidad a producir
+                            </label>
+                            <input type="number"
+                                   name="cantidad_producida"
+                                   id="cantidadProducida"
+                                   class="form-control form-control-lg"
+                                   min="1" placeholder="0" required>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label">
+                                Observaciones (opcional)
+                            </label>
+                            <textarea name="observaciones"
+                                      class="form-control" rows="2"
+                                      placeholder="Notas de producción...">
+                            </textarea>
+                        </div>
+
+                        <button type="submit" class="btn btn-success w-100 btn-lg">
+                            <i class="bi bi-check-circle-fill"></i>
+                            Registrar producción
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabla de stock actual -->
+        <div class="col-md-7">
+            <div class="card">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-clipboard-data"></i>
+                        Stock actual y producible
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Producto</th>
+                                    <th>Stock físico</th>
+                                    <th>Producible</th>
+                                    <th>Insumo limitante</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in productos_con_info %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ item.producto.nombre }}</strong>
+                                    </td>
+                                    <td>
+                                        <span class="badge
+                                            {% if item.producto.stock <= 0 %}bg-danger
+                                            {% elif item.producto.stock <= 5 %}bg-warning text-dark
+                                            {% else %}bg-success{% endif %}">
+                                            {{ item.producto.stock }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if item.producible is not None %}
+                                            <span class="badge
+                                                {% if item.producible <= 0 %}bg-danger
+                                                {% elif item.producible <= 3 %}bg-warning text-dark
+                                                {% else %}bg-primary{% endif %}">
+                                                {{ item.producible }}
+                                            </span>
+                                        {% else %}
+                                            <small class="text-muted">Sin receta</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">
+                                            {{ item.limitante|default:"—" }}
+                                        </small>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('selectProducto').addEventListener('change', function() {
+    var opt = this.options[this.selectedIndex];
+    var producible = opt.dataset.producible;
+    var limitante = opt.dataset.limitante;
+    var infoDiv = document.getElementById('infoProducible');
+
+    if (this.value && producible !== undefined) {
+        document.getElementById('maxProducible').textContent = producible;
+        document.getElementById('insumoLimitante').textContent = limitante || 'N/A';
+        infoDiv.style.display = 'block';
+        document.getElementById('cantidadProducida').max = producible;
+    } else {
+        infoDiv.style.display = 'none';
+    }
+});
+</script>
+{% endblock %}

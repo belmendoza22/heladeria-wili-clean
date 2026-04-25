@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+{% block title %}Gestión de Proveedores{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Gestión de Proveedores</h1>
+        <a href="{% url 'registrar_proveedor' %}" class="btn btn-success">
+            <i class="bi bi-plus-circle"></i> Nuevo Proveedor
+        </a>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-success alert-dismissible fade show">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th>#</th>
+                    <th>Nombre</th>
+                    <th>RUC</th>
+                    <th>Contacto</th>
+                    <th>Teléfono</th>
+                    <th>Dirección</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for proveedor in proveedores %}
+                <tr>
+                    <td>{{ proveedor.id }}</td>
+                    <td>{{ proveedor.nombre }}</td>
+                    <td>{{ proveedor.ruc }}</td>
+                    <td>{{ proveedor.contacto|default:"—" }}</td>
+                    <td>{{ proveedor.telefono|default:"—" }}</td>
+                    <td>{{ proveedor.direccion|default:"—" }}</td>
+                    <td>
+                        <a href="{% url 'editar_proveedor' proveedor.id %}"
+                           class="btn btn-sm btn-warning">
+                            <i class="bi bi-pencil"></i> Editar
+                        </a>
+                        <form method="post"
+                              action="{% url 'eliminar_proveedor' proveedor.id %}"
+                              style="display:inline;"
+                              onsubmit="return confirm('¿Eliminar {{ proveedor.nombre }}?')">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-danger">
+                                <i class="bi bi-trash"></i> Eliminar
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center text-muted">
+                        No hay proveedores registrados.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary mt-3">
+        <i class="bi bi-arrow-left"></i> Volver al panel
+    </a>
+</div>
+{% endblock %}

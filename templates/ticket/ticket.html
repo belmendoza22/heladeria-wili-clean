@@ -1,0 +1,308 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Ticket #{{ pedido.id }} — Heladería Wili</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .ticket {
+            background: white;
+            width: 300px;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+
+        .header {
+            text-align: center;
+            border-bottom: 2px dashed #ccc;
+            padding-bottom: 12px;
+            margin-bottom: 12px;
+        }
+
+        .logo {
+            max-width: 120px;
+            margin-bottom: 8px;
+        }
+
+        .negocio-nombre {
+            font-size: 18px;
+            font-weight: bold;
+            color: #9b87f5;
+        }
+
+        .negocio-info {
+            font-size: 11px;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        .ticket-num {
+            background: #9b87f5;
+            color: white;
+            text-align: center;
+            padding: 6px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: #555;
+            margin-bottom: 3px;
+        }
+
+        .divider {
+            border: none;
+            border-top: 1px dashed #ccc;
+            margin: 10px 0;
+        }
+
+        .productos-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 6px;
+        }
+
+        .producto-row {
+            margin-bottom: 8px;
+            font-size: 12px;
+        }
+
+        .producto-nombre {
+            font-weight: bold;
+            color: #333;
+        }
+
+        .producto-tamano {
+            font-size: 11px;
+            color: #666;
+        }
+
+        .producto-precios {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: #555;
+        }
+
+        .total-section {
+            border-top: 2px dashed #ccc;
+            padding-top: 10px;
+            margin-top: 10px;
+        }
+
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .total-amount {
+            color: #9b87f5;
+            font-size: 18px;
+        }
+
+        .pago-section {
+            background: #f9f7ff;
+            border-radius: 4px;
+            padding: 8px;
+            margin-top: 10px;
+            text-align: center;
+            font-size: 12px;
+        }
+
+        .pago-metodo {
+            font-weight: bold;
+            color: #7b68ee;
+            font-size: 14px;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 14px;
+            padding-top: 12px;
+            border-top: 2px dashed #ccc;
+            font-size: 11px;
+            color: #888;
+        }
+
+        .gracias {
+            font-size: 14px;
+            font-weight: bold;
+            color: #9b87f5;
+            margin-bottom: 4px;
+        }
+
+        /* Botones — se ocultan al imprimir */
+        .acciones {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+            justify-content: center;
+        }
+
+        .btn-imprimir {
+            background: #9b87f5;
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .btn-volver {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            .ticket {
+                box-shadow: none;
+                border-radius: 0;
+                width: 100%;
+            }
+            .acciones {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="ticket">
+    <!-- Encabezado -->
+    <div class="header">
+        <img src="{% static 'Logo_Wili.png' %}" class="logo" alt="Wili">
+        <div class="negocio-nombre">Heladería Wili</div>
+        <div class="negocio-info">San José de los Arroyos, Paraguay</div>
+        <div class="negocio-info">(0984) 236-667</div>
+    </div>
+
+    <!-- Número de ticket -->
+    <div class="ticket-num">
+        TICKET #{{ pedido.id|stringformat:"05d" }}
+    </div>
+
+    <!-- Info del pedido -->
+    <div class="info-row">
+        <span>Fecha:</span>
+        <span>{{ pedido.fecha_pedido|date:"d/m/Y" }}</span>
+    </div>
+    <div class="info-row">
+        <span>Hora:</span>
+        <span>{{ pedido.fecha_pedido|date:"H:i" }}</span>
+    </div>
+    <div class="info-row">
+        <span>Cliente:</span>
+        <span>
+            {% if pedido.cliente %}
+                {{ pedido.cliente.get_full_name|default:pedido.cliente.username }}
+            {% else %}
+                Consumidor final
+            {% endif %}
+        </span>
+    </div>
+    <div class="info-row">
+        <span>Tipo:</span>
+        <span>{{ pedido.get_tipo_pedido_display }}</span>
+    </div>
+
+    <hr class="divider">
+
+    <!-- Productos -->
+    <div class="productos-header">
+        <span>Producto</span>
+        <span>Subtotal</span>
+    </div>
+
+    {% for detalle in detalles %}
+    <div class="producto-row">
+        <div class="producto-nombre">{{ detalle.producto.nombre }}</div>
+        {% if detalle.tamano %}
+            <div class="producto-tamano">{{ detalle.tamano.nombre }}</div>
+        {% endif %}
+        <div class="producto-precios">
+            <span>{{ detalle.cantidad }} x G. {{ detalle.precio_unitario }}</span>
+            <span>G. {{ detalle.subtotal }}</span>
+        </div>
+        {% if detalle.observaciones %}
+            <div class="producto-tamano">* {{ detalle.observaciones }}</div>
+        {% endif %}
+    </div>
+    {% endfor %}
+
+    <!-- Total -->
+    <div class="total-section">
+        <div class="total-row">
+            <span>TOTAL</span>
+            <span class="total-amount">G. {{ pedido.total }}</span>
+        </div>
+    </div>
+
+    <!-- Método de pago -->
+    <div class="pago-section">
+        <div style="font-size:11px; color:#666;">Método de pago</div>
+        <div class="pago-metodo">
+            {% if pedido.metodo_pago == 'efectivo' %}
+                💵 Efectivo
+            {% else %}
+                📱 Transferencia bancaria
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <div class="gracias">¡Gracias por tu compra!</div>
+        <div>Volvé pronto 🍦</div>
+        <div style="margin-top:6px; font-size:10px;">
+            Este comprobante es válido como recibo de pago.
+        </div>
+    </div>
+</div>
+
+<!-- Botones -->
+<div class="acciones">
+    <button class="btn-imprimir" onclick="window.print()">
+        🖨️ Imprimir ticket
+    </button>
+    <a href="{% url 'gestion_pedidos' %}" class="btn-volver">
+        ← Volver
+    </a>
+</div>
+
+</body>
+</html>

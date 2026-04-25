@@ -17,3 +17,9 @@ usuario lowen, 123
 
 proyecto maria, bel123
 superusuario Belen, bel123
+
+
+
+
+adm de insumos pedido, stock y ventas
+control produccion de insumos y productos terminados

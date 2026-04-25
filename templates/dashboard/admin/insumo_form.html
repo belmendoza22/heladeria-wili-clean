@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+{% block title %}{{ accion }} Insumo{% endblock %}
+
+{% block content %}
+<div class="container mt-4" style="max-width: 600px;">
+    <h1 class="mb-4">{{ accion }} Insumo</h1>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-danger">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle-fill"></i>
+        <strong>Importante:</strong> Cargá el stock en la unidad que uses
+        normalmente (kg, L, etc.). El sistema convierte automáticamente
+        para los descuentos internos.
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+
+        <div class="mb-3">
+            <label class="form-label">Nombre</label>
+            <input type="text" name="nombre" class="form-control"
+                   value="{{ insumo.nombre|default:'' }}" required>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Descripción</label>
+            <textarea name="descripcion" class="form-control"
+                      rows="2">{{ insumo.descripcion|default:'' }}</textarea>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Unidad de medida</label>
+            <select name="unidad_medida" class="form-select" required>
+                <option value="">Seleccioná una unidad</option>
+                {% for unidad in unidades %}
+                    <option value="{{ unidad.id }}"
+                        {% if insumo.unidad_medida.id == unidad.id %}selected{% endif %}>
+                        {{ unidad.nombre }} ({{ unidad.simbolo }})
+                        — Factor: {{ unidad.factor_conversion }}
+                    </option>
+                {% endfor %}
+            </select>
+            <small class="text-muted">
+                ¿No encontrás la unidad?
+                <a href="{% url 'crear_unidad_medida' %}">Crear nueva</a>
+            </small>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Stock actual</label>
+                <input type="number" name="stock_actual"
+                       class="form-control" step="0.001"
+                       value="{{ insumo.stock_en_unidad_display|default:0|floatformat:3 }}"
+                       min="0">
+                <small class="text-muted">
+                    Ingresá en la unidad seleccionada (ej: 25 kg)
+                </small>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Stock mínimo</label>
+                <input type="number" name="stock_minimo"
+                       class="form-control" step="0.001"
+                       value="{{ insumo.stock_minimo|default:0|floatformat:3 }}"
+                       min="0">
+            </div>
+        </div>
+
+        <div class="mb-4">
+            <label class="form-label">Precio unitario promedio (Gs.)</label>
+            <input type="number" name="precio_unitario_promedio"
+                   class="form-control" step="0.01"
+                   value="{{ insumo.precio_unitario_promedio|default:0|floatformat:2 }}"
+                   min="0">
+        </div>
+
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-success">
+                <i class="bi bi-check-circle"></i> {{ accion }} Insumo
+            </button>
+            <a href="{% url 'gestion_insumos' %}" class="btn btn-secondary">
+                Cancelar
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}

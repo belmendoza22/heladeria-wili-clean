@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+{% block title %}Gestión de Recetas{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Gestión de Recetas</h1>
+        <a href="{% url 'crear_receta' %}" class="btn btn-success">
+            <i class="bi bi-plus-circle"></i> Nueva Receta
+        </a>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert
+                {% if message.tags == 'success' %}alert-success
+                {% else %}alert-danger{% endif %}
+                alert-dismissible fade show">
+                {{ message }}
+                <button type="button" class="btn-close"
+                        data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle-fill"></i>
+        Las recetas definen qué insumos y en qué cantidad se necesitan
+        para preparar cada producto. El sistema descuenta automáticamente
+        los insumos cuando un pedido pasa a "En preparación".
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th>Producto</th>
+                    <th>Categoría</th>
+                    <th>Insumo requerido</th>
+                    <th>Cantidad</th>
+                    <th>Unidad</th>
+                    <th>Stock insumo</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% regroup recetas by producto as recetas_por_producto %}
+                {% for grupo in recetas_por_producto %}
+                    {% for receta in grupo.list %}
+                    <tr>
+                        {% if forloop.first %}
+                        <td rowspan="{{ grupo.list|length }}"
+                            class="fw-bold align-middle"
+                            style="background-color: var(--lila-suave);">
+                            {{ receta.producto.nombre }}
+                        </td>
+                        <td rowspan="{{ grupo.list|length }}"
+                            class="align-middle text-muted"
+                            style="background-color: var(--lila-suave);">
+                            {{ receta.producto.categoria.nombre }}
+                        </td>
+                        {% endif %}
+                        <td>{{ receta.insumo.nombre }}</td>
+                        <td>
+                            <strong>{{ receta.cantidad_requerida }}</strong>
+                        </td>
+                        <td>{{ receta.insumo.unidad_medida.simbolo }}</td>
+                        <td>
+                            {% if receta.insumo.stock_actual <= receta.insumo.stock_minimo %}
+                                <span class="badge bg-danger">
+                                    {{ receta.insumo.stock_actual }} ⚠
+                                </span>
+                            {% else %}
+                                <span class="badge bg-success">
+                                    {{ receta.insumo.stock_actual }}
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'editar_receta' receta.id %}"
+                               class="btn btn-sm btn-warning">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <form method="post"
+                                  action="{% url 'eliminar_receta' receta.id %}"
+                                  style="display:inline;"
+                                  onsubmit="return confirm('¿Eliminar esta receta?')">
+                                {% csrf_token %}
+                                <button type="submit"
+                                        class="btn btn-sm btn-danger">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-4">
+                        No hay recetas cargadas todavía.
+                        <a href="{% url 'crear_receta' %}">Crear la primera</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary mt-3">
+        <i class="bi bi-arrow-left"></i> Volver al panel
+    </a>
+</div>
+{% endblock %}

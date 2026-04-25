@@ -1,0 +1,211 @@
+{% extends 'base.html' %}
+{% block title %}Modificar Pedido #{{ pedido.id }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4" style="max-width:850px;">
+    <h1 class="mb-4">Modificar Pedido #{{ pedido.id }}</h1>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-danger">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="alert alert-warning d-flex gap-2 align-items-center mb-4">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <span>Solo podés modificar pedidos en estado <strong>Pendiente</strong>.</span>
+    </div>
+
+    <form method="post" id="formModificar">
+        {% csrf_token %}
+
+        <div class="mb-4">
+            <label class="form-label">Observaciones generales</label>
+            <textarea name="observaciones" class="form-control" rows="2"
+                      placeholder="Observaciones del pedido...">{{ pedido.observaciones }}</textarea>
+        </div>
+
+        <h5 class="mb-3">Productos</h5>
+        <div class="table-responsive">
+            <table class="table table-bordered" id="tablaProductos">
+                <thead class="table-light">
+                    <tr>
+                        <th>Producto</th>
+                        <th>Tamaño</th>
+                        <th>Cantidad</th>
+                        <th>Precio (Gs.)</th>
+                        <th>Subtotal</th>
+                        <th>Obs.</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="filasProductos">
+                </tbody>
+            </table>
+        </div>
+
+        <button type="button" class="btn btn-outline-primary btn-sm mb-4"
+                id="btnAgregarFila">
+            <i class="bi bi-plus"></i> Agregar producto
+        </button>
+
+        <div class="d-flex justify-content-between align-items-center mt-3">
+            <h5>Total:
+                <span id="totalPedido" class="text-success fw-bold">G. 0</span>
+            </h5>
+            <div class="d-flex gap-2">
+                <a href="{% url 'mis_pedidos' %}" class="btn btn-secondary">
+                    Cancelar
+                </a>
+                <button type="submit" class="btn btn-success">
+                    <i class="bi bi-check-circle"></i> Guardar cambios
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const rawProductos = [
+    {% for p in productos %}
+    {"id": {{ p.id }}, "precio": {{ p.precio_base|floatformat:0 }}, "nombre": "{{ p.nombre|escapejs }}"},
+    {% endfor %}
+];
+
+const rawTamanos = [
+    {% for t in tamanos %}
+    {"id": {{ t.id }}, "nombre": "{{ t.nombre|escapejs }}"},
+    {% endfor %}
+];
+
+const detallesIniciales = [
+    {% for d in detalles %}
+    {
+        "producto_id": {{ d.producto.id }},
+        "tamano_id": {% if d.tamano %}{{ d.tamano.id }}{% else %}""{% endif %},
+        "cantidad": {{ d.cantidad }},
+        "precio": {{ d.precio_unitario|floatformat:0 }},
+        "obs": "{{ d.observaciones|escapejs }}"
+    },
+    {% endfor %}
+];
+
+const productosData = {};
+rawProductos.forEach(p => productosData[p.id] = p.precio);
+
+function buildProductoOptions(selectedId) {
+    return '<option value="">Seleccioná</option>' +
+        rawProductos.map(p =>
+            `<option value="${p.id}" data-precio="${p.precio}"
+             ${p.id == selectedId ? 'selected' : ''}>${p.nombre}</option>`
+        ).join('');
+}
+
+function buildTamanoOptions(selectedId) {
+    return '<option value="">Sin tamaño</option>' +
+        rawTamanos.map(t =>
+            `<option value="${t.id}"
+             ${t.id == selectedId ? 'selected' : ''}>${t.nombre}</option>`
+        ).join('');
+}
+
+function calcularTotales() {
+    let total = 0;
+    document.querySelectorAll('.fila-producto').forEach(fila => {
+        const cantidad = parseInt(fila.querySelector('.cantidad').value) || 0;
+        const precio = parseInt(fila.querySelector('.precio').value) || 0;
+        const subtotal = cantidad * precio;
+        fila.querySelector('.subtotal').textContent = `G. ${subtotal.toLocaleString()}`;
+        total += subtotal;
+    });
+    document.getElementById('totalPedido').textContent = `G. ${total.toLocaleString()}`;
+}
+
+function crearFila(datos = {}) {
+    const fila = document.createElement('tr');
+    fila.className = 'fila-producto';
+    fila.innerHTML = `
+        <td>
+            <select name="producto_id[]"
+                    class="form-select form-select-sm select-producto" required>
+                ${buildProductoOptions(datos.producto_id || '')}
+            </select>
+        </td>
+        <td>
+            <select name="tamano_id[]" class="form-select form-select-sm">
+                ${buildTamanoOptions(datos.tamano_id || '')}
+            </select>
+        </td>
+        <td>
+            <input type="number" name="cantidad[]"
+                   class="form-control form-control-sm cantidad"
+                   min="1" value="${datos.cantidad || 1}" required>
+        </td>
+        <td>
+            <input type="number" name="precio_unitario[]"
+                   class="form-control form-control-sm precio"
+                   min="0" value="${datos.precio || 0}" required>
+        </td>
+        <td>
+            <span class="subtotal fw-bold text-primary">G. 0</span>
+        </td>
+        <td>
+            <input type="text" name="obs_detalle[]"
+                   class="form-control form-control-sm"
+                   placeholder="Obs..."
+                   value="${datos.obs || ''}">
+        </td>
+        <td>
+            <button type="button"
+                    class="btn btn-sm btn-danger btn-eliminar-fila">
+                <i class="bi bi-trash"></i>
+            </button>
+        </td>
+    `;
+    return fila;
+}
+
+function agregarEventosFila(fila) {
+    fila.querySelector('.select-producto').addEventListener('change', function() {
+        const precio = productosData[this.value] || 0;
+        fila.querySelector('.precio').value = precio;
+        calcularTotales();
+    });
+    fila.querySelector('.cantidad').addEventListener('input', calcularTotales);
+    fila.querySelector('.precio').addEventListener('input', calcularTotales);
+    fila.querySelector('.btn-eliminar-fila').addEventListener('click', function() {
+        if (document.querySelectorAll('.fila-producto').length > 1) {
+            fila.remove();
+            calcularTotales();
+        }
+    });
+}
+
+document.getElementById('btnAgregarFila').addEventListener('click', function() {
+    const tbody = document.getElementById('filasProductos');
+    const fila = crearFila();
+    tbody.appendChild(fila);
+    agregarEventosFila(fila);
+    calcularTotales();
+});
+
+// Cargar detalles existentes del pedido
+document.addEventListener('DOMContentLoaded', function() {
+    const tbody = document.getElementById('filasProductos');
+    if (detallesIniciales.length > 0) {
+        detallesIniciales.forEach(datos => {
+            const fila = crearFila(datos);
+            tbody.appendChild(fila);
+            agregarEventosFila(fila);
+        });
+    } else {
+        const fila = crearFila();
+        tbody.appendChild(fila);
+        agregarEventosFila(fila);
+    }
+    calcularTotales();
+});
+</script>
+{% endblock %}

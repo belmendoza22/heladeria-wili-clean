@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Confirmar Pedido{% endblock %}
+
+{% block content %}
+<div class="container mt-4" style="max-width: 700px;">
+    <h1 class="mb-4">Confirmar tu pedido</h1>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-danger">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="card mb-4">
+        <div class="card-header" style="background-color: #9b87f5; color: white;">
+            <h5 class="mb-0">
+                <i class="bi bi-cart-check"></i> Resumen del pedido
+            </h5>
+        </div>
+        <div class="card-body">
+            <table class="table align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Producto</th>
+                        <th>Tamaño</th>
+                        <th>Cantidad</th>
+                        <th>Precio</th>
+                        <th>Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        <td>{{ item.producto.nombre }}</td>
+                        <td>{{ item.tamano.nombre|default:"—" }}</td>
+                        <td>{{ item.cantidad }}</td>
+                        <td>G. {{ item.precio_unitario }}</td>
+                        <td>G. {{ item.subtotal }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <th colspan="4" class="text-end">Total:</th>
+                        <th class="text-success">G. {{ total }}</th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="d-flex align-items-start gap-3">
+                <i class="bi bi-info-circle-fill text-primary fs-4 mt-1"></i>
+                <div>
+                    <h6 class="mb-1">Modalidad Pick-up</h6>
+                    <p class="text-muted mb-0 small">
+                        Tu pedido será preparado y podrás retirarlo en el local.
+                        Te notificaremos cuando esté listo.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="mb-4">
+            <label class="form-label">
+                Observaciones (opcional)
+            </label>
+            <textarea name="observaciones"
+                      class="form-control"
+                      rows="3"
+                      placeholder="Ej: sin azúcar, con más granizado...">
+            </textarea>
+        </div>
+
+        <div class="d-flex gap-2 justify-content-between">
+            <a href="{% url 'carrito' %}" class="btn btn-secondary">
+                <i class="bi bi-arrow-left"></i> Volver al carrito
+            </a>
+            <button type="submit" class="btn btn-success btn-lg">
+                <i class="bi bi-check-circle"></i> Confirmar pedido
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

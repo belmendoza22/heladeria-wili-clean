@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <h1>{{ categoria.nombre }}</h1>
+    <p>{{ categoria.descripcion }}</p>
+    <div class="row">
+        {% for item in productos_con_precios %}
+            <div class="col-md-4">
+                <div class="card mb-4">
+                    {% if item.producto.imagen %}
+                        <img src="{{ item.producto.imagen.url }}" class="card-img-top" alt="{{ item.producto.nombre }}">
+                    {% endif %}
+                    <div class="card-body">
+                        <h5 class="card-title">{{ item.producto.nombre }}</h5>
+                        <p class="card-text">{{ item.producto.descripcion|truncatechars:100 }}</p>
+                        <h6>Presentaciones:</h6>
+                        <ul class="list-group">
+                            {% for pt in item.precios %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    {{ pt.tamano.nombre }}
+                                    <span class="badge bg-primary rounded-pill">G. {{ pt.precio }}</span>
+                                    <button class="btn btn-sm btn-success" 
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#modal{{ item.producto.id }}_{{ pt.tamano.id }}">
+                                        Agregar
+                                    </button>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        {% empty %}
+            <p>No hay productos en esta categoría.</p>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Modales para agregar al carrito (similar a menu.html) -->
+{% for item in productos_con_precios %}
+    {% for pt in item.precios %}
+        <div class="modal fade" id="modal{{ item.producto.id }}_{{ pt.tamano.id }}" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">{{ item.producto.nombre }} - {{ pt.tamano.nombre }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <form class="add-to-cart-form" data-url="{% url 'agregar_carrito' %}">
+                        <div class="modal-body">
+                            <input type="hidden" name="producto_id" value="{{ item.producto.id }}">
+                            <input type="hidden" name="tamano_id" value="{{ pt.tamano.id }}">
+                            <div class="mb-3">
+                                <label class="form-label">Sabores disponibles:</label>
+                                <div class="row">
+                                    {% for sabor in sabores %}
+                                        <div class="col-md-6">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" 
+                                                       name="sabor_ids[]" value="{{ sabor.id }}" 
+                                                       id="sabor{{ sabor.id }}_{{ item.producto.id }}_{{ pt.tamano.id }}">
+                                                <label class="form-check-label" for="sabor{{ sabor.id }}_{{ item.producto.id }}_{{ pt.tamano.id }}">
+                                                    {{ sabor.nombre }}
+                                                    {% if sabor.precio_extra > 0 %}
+                                                        (+G. {{ sabor.precio_extra }})
+                                                    {% endif %}
+                                                </label>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Cantidad:</label>
+                                <input type="number" name="cantidad" value="1" min="1" class="form-control" style="width: 100px;">
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="submit" class="btn btn-primary">Agregar al carrito</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    {% endfor %}
+{% endfor %}
+
+<script>
+    // El mismo script de menu.html para agregar al carrito
+    document.querySelectorAll('.add-to-cart-form').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            const url = this.dataset.url;
+
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Producto agregado al carrito');
+                    const modal = bootstrap.Modal.getInstance(this.closest('.modal'));
+                    modal.hide();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error de conexión');
+            });
+        });
+    });
+</script>
+{% endblock %}

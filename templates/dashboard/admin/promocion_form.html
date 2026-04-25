@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+{% block title %}{{ accion }} Promoción{% endblock %}
+
+{% block content %}
+<div class="container mt-4" style="max-width:650px;">
+    <h1 class="mb-4">{{ accion }} Promoción</h1>
+
+    <form method="post">
+        {% csrf_token %}
+
+        <div class="mb-3">
+            <label class="form-label">Nombre</label>
+            <input type="text" name="nombre" class="form-control"
+                   value="{{ promo.nombre|default:'' }}" required>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Descripción</label>
+            <textarea name="descripcion" class="form-control"
+                      rows="2">{{ promo.descripcion|default:'' }}</textarea>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Fecha inicio</label>
+                <input type="date" name="fecha_inicio" class="form-control"
+                       value="{{ promo.fecha_inicio|date:'Y-m-d'|default:'' }}"
+                       required>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Fecha fin</label>
+                <input type="date" name="fecha_fin" class="form-control"
+                       value="{{ promo.fecha_fin|date:'Y-m-d'|default:'' }}"
+                       required>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Tipo de descuento</label>
+                <select name="tipo_descuento" class="form-select" required>
+                    {% for valor, nombre in tipos %}
+                        <option value="{{ valor }}"
+                            {% if promo.tipo_descuento == valor %}selected{% endif %}>
+                            {{ nombre }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Valor del descuento</label>
+                <input type="number" name="valor_descuento"
+                       class="form-control"
+                       value="{{ promo.valor_descuento|default:'' }}"
+                       min="0" required>
+                <small class="text-muted">
+                    Si es porcentaje: 10 = 10%. Si es monto fijo: 5000 = G. 5.000
+                </small>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Productos incluidos</label>
+            <div class="border rounded p-3"
+                 style="max-height:200px; overflow-y:auto;">
+                {% for producto in productos %}
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox"
+                           name="productos[]"
+                           value="{{ producto.id }}"
+                           id="prod_{{ producto.id }}"
+                           {% if producto.id in productos_seleccionados %}checked{% endif %}>
+                    <label class="form-check-label"
+                           for="prod_{{ producto.id }}">
+                        {{ producto.nombre }} —
+                        <small class="text-muted">
+                            {{ producto.categoria.nombre }}
+                        </small>
+                    </label>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        {% if promo %}
+        <div class="mb-4">
+            <div class="form-check">
+                <input type="checkbox" name="activo"
+                       class="form-check-input" id="activo"
+                       {% if promo.activo %}checked{% endif %}>
+                <label class="form-check-label" for="activo">
+                    Promoción activa
+                </label>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-success">
+                <i class="bi bi-check-circle"></i> {{ accion }} Promoción
+            </button>
+            <a href="{% url 'gestion_promociones' %}"
+               class="btn btn-secondary">
+                Cancelar
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}

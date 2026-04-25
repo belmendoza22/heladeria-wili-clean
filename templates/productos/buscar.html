@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Buscar productos{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">Buscar productos</h1>
+
+    <form method="get" class="d-flex gap-2 mb-4">
+        <input type="text" name="q" class="form-control"
+               placeholder="¿Qué helado buscás?"
+               value="{{ busqueda }}">
+        <button type="submit" class="btn btn-primary">
+            <i class="bi bi-search"></i> Buscar
+        </button>
+    </form>
+
+    {% if busqueda %}
+        <p class="text-muted mb-4">
+            {{ productos_con_precios|length }} resultado(s) para
+            "<strong>{{ busqueda }}</strong>"
+        </p>
+
+        <div class="row">
+            {% for item in productos_con_precios %}
+            <div class="col-md-4 mb-4">
+                <div class="card h-100 shadow-sm">
+                    {% if item.producto.imagen %}
+                        <img src="{{ item.producto.imagen.url }}"
+                             class="card-img-top"
+                             alt="{{ item.producto.nombre }}"
+                             style="height:200px; object-fit:cover;">
+                    {% else %}
+                        <img src="{% static 'images/producto_default.jpg' %}"
+                             class="card-img-top"
+                             style="height:200px; object-fit:cover;">
+                    {% endif %}
+                    <div class="card-body">
+                        <h5 class="card-title">{{ item.producto.nombre }}</h5>
+                        <p class="text-muted small">
+                            {{ item.producto.categoria.nombre }}
+                        </p>
+                        {% if item.precios %}
+                            {% for pt in item.precios %}
+                                <p class="mb-1">
+                                    <span class="text-muted">{{ pt.tamano.nombre }}:</span>
+                                    <strong>G. {{ pt.precio }}</strong>
+                                </p>
+                            {% endfor %}
+                        {% else %}
+                            <p class="fw-bold text-primary">
+                                G. {{ item.producto.precio_base }}
+                            </p>
+                        {% endif %}
+                        <a href="{% url 'productos_categoria' item.producto.categoria.slug %}"
+                           class="btn btn-outline-primary btn-sm mt-2">
+                            Ver categoría
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+                <div class="col-12">
+                    <div class="alert alert-info text-center">
+                        No se encontraron productos para "{{ busqueda }}".
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <!-- Categorías disponibles -->
+    <hr class="mt-4">
+    <h5 class="mb-3">Explorar por categoría</h5>
+    <div class="d-flex flex-wrap gap-2">
+        {% for categoria in categorias %}
+            <a href="{% url 'productos_categoria' categoria.slug %}"
+               class="btn btn-outline-primary btn-sm">
+                {{ categoria.nombre }}
+            </a>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

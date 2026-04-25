@@ -719,3 +719,597 @@
     </script>
 </body>
 </html>
+
+---------------------------------------------------------------------------------------
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Heladería Wili - Helados Artesanales</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        :root {
+            --lila-principal: #9b87f5;
+            --lila-claro: #c6b7f5;
+            --lila-oscuro: #7b68ee;
+            --lila-suave: #e6e1ff;
+            --blanco: #ffffff;
+            --texto-oscuro: #5a5a5a;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--texto-oscuro);
+            background-color: #f9f7ff;
+        }
+        
+        .navbar {
+            background-color: var(--lila-principal);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .navbar-brand img {
+            height: 50px;
+        }
+        
+        .nav-link {
+            color: var(--blanco) !important;
+            font-weight: 500;
+            margin: 0 5px;
+            border-radius: 20px;
+            transition: all 0.3s ease;
+        }
+        
+        .nav-link:hover, .nav-link.active {
+            background-color: var(--lila-oscuro);
+        }
+        
+        .btn-primary {
+            background-color: var(--lila-principal);
+            border-color: var(--lila-principal);
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--lila-oscuro);
+            border-color: var(--lila-oscuro);
+        }
+        
+        .btn-outline-primary {
+            color: var(--lila-principal);
+            border-color: var(--lila-principal);
+        }
+        
+        .btn-outline-primary:hover {
+            background-color: var(--lila-principal);
+            color: white;
+        }
+        
+        .hero-section {
+            background: linear-gradient(135deg, var(--lila-principal), var(--lila-oscuro));
+            color: white;
+            padding: 80px 0;
+            border-radius: 0 0 30px 30px;
+            margin-bottom: 50px;
+        }
+        
+        .section-title {
+            position: relative;
+            margin-bottom: 40px;
+            text-align: center;
+        }
+        
+        .section-title:after {
+            content: '';
+            display: block;
+            width: 80px;
+            height: 3px;
+            background-color: var(--lila-principal);
+            margin: 15px auto;
+        }
+        
+        .category-card {
+            border: none;
+            border-radius: 15px;
+            overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            margin-bottom: 25px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        }
+        
+        .category-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.15);
+        }
+        
+        .category-img {
+            height: 200px;
+            object-fit: cover;
+        }
+        
+        .category-card-body {
+            background-color: var(--blanco);
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .product-card {
+            border: none;
+            border-radius: 15px;
+            overflow: hidden;
+            transition: transform 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            margin-bottom: 25px;
+        }
+        
+        .product-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .product-img {
+            height: 200px;
+            object-fit: cover;
+        }
+
+        .flavor-card {
+            border: none;
+            border-radius: 15px;
+            overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            margin-bottom: 25px;
+            background-color: var(--blanco);
+        }
+
+        .flavor-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        }
+
+        .flavor-img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+        }
+
+        .flavor-card-body {
+            padding: 20px;
+            text-align: center;
+        }
+
+        .flavor-name {
+            font-weight: 600;
+            color: var(--lila-oscuro);
+            margin-bottom: 10px;
+        }
+
+        .flavor-description {
+            color: #777;
+            font-size: 0.9rem;
+        }
+        
+        .contact-section {
+            background-color: var(--lila-suave);
+            padding: 60px 0;
+            margin-top: 50px;
+            border-radius: 30px 30px 0 0;
+        }
+        
+        .map-container {
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        footer {
+            background-color: var(--lila-principal);
+            color: white;
+            padding: 40px 0 20px;
+        }
+        
+        .social-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            background-color: rgba(255,255,255,0.2);
+            border-radius: 50%;
+            margin-right: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .social-icon:hover {
+            background-color: white;
+            color: var(--lila-principal);
+        }
+        
+        .notification {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1050;
+            display: none;
+        }
+        
+        .carousel-indicators [data-bs-target] {
+            background-color: var(--lila-principal);
+        }
+        
+        .carousel-control-prev-icon,
+        .carousel-control-next-icon {
+            background-color: var(--lila-principal);
+            border-radius: 50%;
+            padding: 15px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark sticky-top">
+    <div class="container">
+        <a class="navbar-brand" href="#">
+            <img src="{% static 'images/Logo_Wili.png' %}" alt="Heladería Wili">
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item">
+                    <a class="nav-link active" href="#">Inicio</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#categorias">Categorías</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#sabores">Sabores</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#contacto">Contacto</a>
+                </li>
+            </ul>
+        </div>
+        <div class="d-flex align-items-center">
+            <!-- Botón del carrito con contador -->
+            <a href="{% url 'carrito' %}" class="btn btn-outline-light position-relative me-2">
+                <i class="bi bi-cart"></i>
+                {% if carrito_count > 0 %}
+                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                        {{ carrito_count }}
+                    </span>
+                {% endif %}
+            </a>
+
+            {% if user.is_authenticated %}
+                <form method="post" action="{% url 'logout' %}" class="m-0">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline-light">Cerrar sesión</button>
+                </form>
+            {% else %}
+                <a href="{% url 'login' %}" class="btn btn-outline-light me-2">Iniciar sesión</a>
+                <a href="{% url 'registro' %}" class="btn btn-light">Registrarse</a>
+            {% endif %}
+        </div>
+    </div>
+</nav>
+
+    <!-- Hero Section -->
+    <section class="hero-section">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-lg-6">
+                    <h1 class="display-4 fw-bold">Los Mejores Helados Artesanales</h1>
+                    <p class="lead">Disfruta de nuestros deliciosos helados elaborados con ingredientes naturales y mucho amor desde 1997.</p>
+                    <a href="#categorias" class="btn btn-light btn-lg mt-3">Ver Productos</a>
+                </div>
+                <div class="col-lg-6">
+                    <div id="heroCarousel" class="carousel slide" data-bs-ride="carousel">
+                        <div class="carousel-indicators">
+                            <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="0" class="active"></button>
+                            <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="1"></button>
+                            <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="2"></button>
+                        </div>
+                        <div class="carousel-inner rounded-3">
+                            <div class="carousel-item active">
+                                <img src="{% static 'images/Productos/kilo.jpg' %}" class="d-block w-100" alt="Helados artesanales">
+                            </div>
+                            <div class="carousel-item">
+                                <img src="{% static 'images/Productos/paletas.jpg' %}" class="d-block w-100" alt="Paletas">
+                            </div>
+                            <div class="carousel-item">
+                                <img src="{% static 'images/Productos/açai.jpg' %}" class="d-block w-100" alt="Açaí bowl">
+                            </div>
+                            <div class="carousel-item">
+                                <img src="{% static 'images/Productos/conos.jpg' %}" class="d-block w-100" alt="Conos de helado">
+                            </div>
+                        </div>
+                        <button class="carousel-control-prev" type="button" data-bs-target="#heroCarousel" data-bs-slide="prev">
+                            <span class="carousel-control-prev-icon"></span>
+                        </button>
+                        <button class="carousel-control-next" type="button" data-bs-target="#heroCarousel" data-bs-slide="next">
+                            <span class="carousel-control-next-icon"></span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Categorías -->
+    <section id="categorias" class="py-5">
+        <div class="container">
+            <h2 class="section-title">Nuestras Categorías</h2>
+            <div class="row">
+                {% for categoria in categorias %}
+                <div class="col-md-4 col-sm-6">
+                    <a href="{% url 'productos_categoria' categoria.slug %}" class="text-decoration-none">
+                        <div class="category-card">
+                            {% if categoria.imagen %}
+                                <img src="{{ categoria.imagen.url }}" class="category-img w-100" alt="{{ categoria.nombre }}">
+                            {% else %}
+                                <img src="{% static 'images/Productos/default.jpg' %}" class="category-img w-100" alt="{{ categoria.nombre }}">
+                            {% endif %}
+                            <div class="category-card-body">
+                                <h5 class="card-title">{{ categoria.nombre }}</h5>
+                                <p class="card-text">{{ categoria.descripcion|truncatechars:50 }}</p>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                {% empty %}
+                <div class="col-12 text-center">
+                    <p>No hay categorías disponibles.</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+    <!-- Debug: productos_destacados tiene {{ productos_destacados|length }} productos -->
+    <!-- Productos Destacados -->
+    <section id="productos-destacados" class="py-5 bg-light">
+        <div class="container">
+            <h2 class="section-title">Productos Destacados</h2>
+            <div class="row">
+                {% for producto in productos_destacados %}
+                <div class="col-md-4">
+                    <div class="product-card">
+                        {% if producto.imagen %}
+                            <img src="{{ producto.imagen.url }}" class="product-img w-100" alt="{{ producto.nombre }}">
+                        {% else %}
+                            <img src="{% static 'images/Productos/default.jpg' %}" class="product-img w-100" alt="{{ producto.nombre }}">
+                        {% endif %}
+                        <div class="card-body">
+                            <h5 class="card-title">{{ producto.nombre }}</h5>
+                            <p class="card-text">{{ producto.descripcion|truncatechars:50 }}</p>
+                            
+                            <!-- Mostrar opciones de tamaño y precio -->
+                            <div class="mt-3">
+                                {% for pt in producto.productotamano_set.all %}
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <span>{{ pt.tamano.nombre }}</span>
+                                        <span class="fw-bold text-primary">G. {{ pt.precio }}</span>
+                                        <button class="btn btn-primary btn-sm add-to-cart" 
+                                                data-producto-id="{{ producto.id }}"
+                                                data-tamano-id="{{ pt.tamano.id }}"
+                                                data-url="{% url 'agregar_carrito' %}">
+                                            Agregar
+                                        </button>
+                                    </div>
+                                {% empty %}
+                                    <p class="text-muted">Sin presentaciones disponibles</p>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+    <!-- Sabores -->
+    <section id="sabores" class="py-5">
+        <div class="container">
+            <h2 class="section-title">Nuestros Sabores</h2>
+            <div class="row">
+                {% for sabor in sabores %}
+                <div class="col-lg-4 col-md-6">
+                    <div class="flavor-card">
+                        {% if sabor.imagen %}
+                            <img src="{{ sabor.imagen.url }}" class="flavor-img" alt="{{ sabor.nombre }}">
+                        {% else %}
+                            <img src="{% static 'images/Sabores/default.jpg' %}" class="flavor-img" alt="{{ sabor.nombre }}">
+                        {% endif %}
+                        <div class="flavor-card-body">
+                            <div class="flavor-name">{{ sabor.nombre }}</div>
+                            <div class="flavor-description">{{ sabor.descripcion|truncatechars:80 }}</div>
+                            {% if sabor.precio_extra > 0 %}
+                                <div class="mt-2 text-primary">+ G. {{ sabor.precio_extra }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+    <!-- Contacto -->
+    <section id="contacto" class="contact-section">
+        <div class="container">
+            <h2 class="section-title">Visítanos</h2>
+            <div class="row">
+                <div class="col-lg-6 mb-4">
+                    <div class="bg-white p-4 rounded-3 shadow-sm h-100">
+                        <h4 class="mb-4">Información de Contacto</h4>
+                        <p><i class="bi bi-geo-alt-fill me-2 text-primary"></i> San José de los Arroyos, Paraguay</p>
+                        <p><i class="bi bi-telephone-fill me-2 text-primary"></i> (0984) 236-667</p>
+                        <p><i class="bi bi-envelope-fill me-2 text-primary"></i> infohwili@gmail.com</p>
+                        <p><i class="bi bi-clock-fill me-2 text-primary"></i> Lunes a Viernes: 9:00 - 20:00</p>
+                        <p><i class="bi bi-clock-fill me-2 text-primary"></i> Sábados: 9:00 - 22:00</p>
+                        <p><i class="bi bi-clock-fill me-2 text-primary"></i> Domingos: 10:00 - 21:00</p>
+                        
+                        <div class="mt-4">
+                            <a href="#" class="social-icon"><i class="bi bi-facebook"></i></a>
+                            <a href="#" class="social-icon"><i class="bi bi-instagram"></i></a>
+                            <a href="#" class="social-icon"><i class="bi bi-whatsapp"></i></a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="map-container h-100">
+                        <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3601.135831357299!2d-56.73173468497806!3d-25.48196648375564!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x945eba58b2dcee7b%3A0x1a5f8e9b3b0e3b1a!2sSan%20Jos%C3%A9%20de%20los%20Arroyos%2C%20Paraguay!5e0!3m2!1ses!2ses!4v1620000000000!5m2!1ses!2ses" width="100%" height="300" style="border:0;" allowfullscreen="" loading="lazy"></iframe>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Información adicional -->
+    <div class="container">
+        <div class="flavor-detail mt-5">
+            <div class="row">
+                <div class="col-md-6">
+                    <h3 class="mb-4">Nuestros Ingredientes</h3>
+                    <p>Todos nuestros helados son elaborados artesanalmente con ingredientes 100% naturales:</p>
+                    <ul class="flavor-features">
+                        <li><i class="bi bi-check-circle-fill"></i> Leche fresca de la mejor calidad</li>
+                        <li><i class="bi bi-check-circle-fill"></i> Frutas naturales de temporada</li>
+                        <li><i class="bi bi-check-circle-fill"></i> Cacao premium para nuestros chocolates</li>
+                        <li><i class="bi bi-check-circle-fill"></i> Vainilla Bourbon natural</li>
+                        <li><i class="bi bi-check-circle-fill"></i> Sin conservantes ni colorantes artificiales</li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <h3 class="mb-4">¿Sabías que?</h3>
+                    <p>Nuestros helados mantienen la tradición familiar desde 1997, utilizando recetas que han pasado de generación en generación.</p>
+                    <p>Cada sabor es cuidadosamente desarrollado para ofrecer una experiencia única a nuestros clientes.</p>
+                    <p>¡Puedes combinar hasta 3 sabores diferentes en nuestros conos y potes!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+            
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="row">
+                <div class="col-lg-4 mb-4">
+                    <h5>Heladería Wili</h5>
+                    <p>Desde 1997 elaborando los mejores helados artesanales de San José de los Arroyos con ingredientes naturales y recetas tradicionales.</p>
+                </div>
+                <div class="col-lg-2 col-md-6 mb-4">
+                    <h5>Enlaces</h5>
+                    <ul class="list-unstyled">
+                        <li><a href="#" class="text-white text-decoration-none">Inicio</a></li>
+                        <li><a href="#categorias" class="text-white text-decoration-none">Categorías</a></li>
+                        <li><a href="#sabores" class="text-white text-decoration-none">Sabores</a></li>
+                        <li><a href="#contacto" class="text-white text-decoration-none">Contacto</a></li>
+                    </ul>
+                </div>
+                <div class="col-lg-3 col-md-6 mb-4">
+                    <h5>Categorías</h5>
+                    <ul class="list-unstyled">
+                        <li><a href="#" class="text-white text-decoration-none" data-category="kilo">Por Kilo</a></li>
+                        <li><a href="#" class="text-white text-decoration-none" data-category="cono">Conos</a></li>
+                        <li><a href="#" class="text-white text-decoration-none" data-category="paletas">Paletas</a></li>
+                        <li><a href="#" class="text-white text-decoration-none" data-category="torta">Torta Helada</a></li>
+                        <li><a href="#" class="text-white text-decoration-none" data-category="acai">Açaí</a></li>
+                        <li><a href="#" class="text-white text-decoration-none" data-category="preparados">Preparados</a></li>
+                    </ul>
+                </div>
+            </div>
+            <hr class="my-4">
+            <div class="text-center">
+                <p>&copy; 2025 Heladería Wili. Todos los derechos reservados.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Notificación de carrito -->
+    <div class="notification alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i> <span id="notification-text"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+    // Función para mostrar notificaciones
+    function mostrarNotificacion(mensaje, tipo = 'success') {
+        const notification = document.querySelector('.notification');
+        const notificationText = document.getElementById('notification-text');
+        notificationText.textContent = mensaje;
+        notification.classList.remove('alert-success', 'alert-danger');
+        notification.classList.add(`alert-${tipo}`);
+        notification.style.display = 'block';
+        setTimeout(() => {
+            notification.style.display = 'none';
+        }, 3000);
+    }
+
+    // Agregar al carrito con fetch
+    document.querySelectorAll('.add-to-cart').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();  // Evitar comportamiento por defecto
+            
+            const productoId = this.dataset.productoId;
+            const tamanoId = this.dataset.tamanoId;
+            const url = this.dataset.url;
+            
+            if (!productoId || !tamanoId) {
+                mostrarNotificacion('Error: Datos incompletos', 'danger');
+                return;
+            }
+
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    'producto_id': productoId,
+                    'tamano_id': tamanoId,
+                    'cantidad': 1
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    mostrarNotificacion('Producto agregado al carrito');
+                } else {
+                    mostrarNotificacion('Error: ' + data.error, 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                mostrarNotificacion('Error de conexión', 'danger');
+            });
+        });
+    });
+
+    // Scroll suave para enlaces internos
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            const targetId = this.getAttribute('href');
+            if (targetId === '#') return;
+            const targetElement = document.querySelector(targetId);
+            if (targetElement) {
+                targetElement.scrollIntoView({ behavior: 'smooth' });
+            }
+        });
+    });
+    </script>
+
+    <!-- Depuración (opcional, quitar en producción) -->
+    {# <pre>{% debug %}</pre> #}
+</body>
+</html>

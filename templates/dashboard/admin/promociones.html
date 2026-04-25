@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+{% block title %}Gestión de Promociones{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Gestión de Promociones</h1>
+        <a href="{% url 'crear_promocion' %}" class="btn btn-success">
+            <i class="bi bi-plus-circle"></i> Nueva Promoción
+        </a>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-success alert-dismissible fade show">
+                {{ message }}
+                <button type="button" class="btn-close"
+                        data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th>Nombre</th>
+                    <th>Descuento</th>
+                    <th>Inicio</th>
+                    <th>Fin</th>
+                    <th>Productos</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for promo in promociones %}
+                <tr>
+                    <td><strong>{{ promo.nombre }}</strong></td>
+                    <td>
+                        {% if promo.tipo_descuento == 'porcentaje' %}
+                            {{ promo.valor_descuento }}%
+                        {% else %}
+                            G. {{ promo.valor_descuento }}
+                        {% endif %}
+                    </td>
+                    <td>{{ promo.fecha_inicio|date:"d/m/Y" }}</td>
+                    <td>{{ promo.fecha_fin|date:"d/m/Y" }}</td>
+                    <td>
+                        <span class="badge bg-secondary">
+                            {{ promo.productos.count }} producto(s)
+                        </span>
+                    </td>
+                    <td>
+                        {% if promo.activo and promo.fecha_inicio <= hoy and promo.fecha_fin >= hoy %}
+                            <span class="badge bg-success">Activa</span>
+                        {% elif not promo.activo %}
+                            <span class="badge bg-secondary">Inactiva</span>
+                        {% elif promo.fecha_fin < hoy %}
+                            <span class="badge bg-danger">Vencida</span>
+                        {% else %}
+                            <span class="badge bg-warning text-dark">
+                                Próximamente
+                            </span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{% url 'editar_promocion' promo.id %}"
+                           class="btn btn-sm btn-warning">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                        <form method="post"
+                              action="{% url 'eliminar_promocion' promo.id %}"
+                              style="display:inline;"
+                              onsubmit="return confirm('¿Eliminar {{ promo.nombre }}?')">
+                            {% csrf_token %}
+                            <button type="submit"
+                                    class="btn btn-sm btn-danger">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center text-muted">
+                        No hay promociones registradas.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary mt-3">
+        <i class="bi bi-arrow-left"></i> Volver al panel
+    </a>
+</div>
+{% endblock %}

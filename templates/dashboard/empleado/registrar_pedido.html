@@ -1,0 +1,183 @@
+{% extends 'base.html' %}
+{% block title %}Registrar Pedido{% endblock %}
+
+{% block content %}
+<div class="container mt-4" style="max-width:850px;">
+    <h1 class="mb-4">Registrar Nuevo Pedido</h1>
+
+    <form method="post" id="formPedido">
+        {% csrf_token %}
+
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label class="form-label">Cliente (opcional)</label>
+                <select name="cliente_id" class="form-select">
+                    <option value="">Sin cliente registrado</option>
+                    {% for cliente in clientes %}
+                        <option value="{{ cliente.id }}">
+                            {{ cliente.get_full_name|default:cliente.username }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Tipo de pedido</label>
+                <select name="tipo_pedido" class="form-select">
+                    <option value="local">En local</option>
+                    <option value="online">Online (pick-up)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="mb-4">
+            <label class="form-label">Observaciones generales</label>
+            <textarea name="observaciones" class="form-control"
+                      rows="2" placeholder="Observaciones del pedido..."></textarea>
+        </div>
+
+        <h5 class="mb-3">Productos del pedido</h5>
+        <div class="table-responsive">
+            <table class="table table-bordered" id="tablaProductos">
+                <thead class="table-light">
+                    <tr>
+                        <th>Producto</th>
+                        <th>Tamaño</th>
+                        <th>Cantidad</th>
+                        <th>Precio (Gs.)</th>
+                        <th>Subtotal</th>
+                        <th>Obs.</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="filasProductos">
+                </tbody>
+            </table>
+        </div>
+
+        <button type="button" class="btn btn-outline-primary btn-sm mb-4"
+                id="btnAgregarFila">
+            <i class="bi bi-plus"></i> Agregar producto
+        </button>
+
+        <div class="d-flex justify-content-between align-items-center mt-3">
+            <h5>Total:
+                <span id="totalPedido" class="text-success fw-bold">G. 0</span>
+            </h5>
+            <div class="d-flex gap-2">
+                <a href="{% url 'gestion_pedidos' %}" class="btn btn-secondary">
+                    Cancelar
+                </a>
+                <button type="submit" class="btn btn-success">
+                    <i class="bi bi-check-circle"></i> Registrar Pedido
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<div id="data-store"
+     data-productos='[{% for p in productos %}{"id":{{ p.id }},"precio":{{ p.precio_base|default:0|floatformat:0 }},"nombre":"{{ p.nombre|escapejs }}"}{% if not forloop.last %},{% endif %}{% endfor %}]'
+     data-tamanos='[{% for t in tamanos %}{"id":{{ t.id }},"nombre":"{{ t.nombre|escapejs }}"}{% if not forloop.last %},{% endif %}{% endfor %}]'
+     data-precios='{ {% for key, precio in precios_data.items %}"{{ key }}":{{ precio|floatformat:0 }}{% if not forloop.last %},{% endif %}{% endfor %} }'
+     style="display:none;">
+</div>
+
+<script>
+var store = document.getElementById('data-store');
+var rawProductos = JSON.parse(store.dataset.productos || '[]');
+var rawTamanos = JSON.parse(store.dataset.tamanos || '[]');
+var preciosData = JSON.parse(store.dataset.precios || '{}');
+var productosData = {};
+rawProductos.forEach(function(p) { productosData[p.id] = p.precio; });
+
+function buildOpts(arr, valKey, labelKey, selected) {
+    var html = '<option value="">Seleccioná</option>';
+    arr.forEach(function(item) {
+        var sel = item[valKey] == selected ? ' selected' : '';
+        html += '<option value="' + item[valKey] + '"' + sel + '>' + item[labelKey] + '</option>';
+    });
+    return html;
+}
+
+function buildTamanoOpts(selected) {
+    var html = '<option value="">Sin tamaño</option>';
+    rawTamanos.forEach(function(t) {
+        var sel = t.id == selected ? ' selected' : '';
+        html += '<option value="' + t.id + '"' + sel + '>' + t.nombre + '</option>';
+    });
+    return html;
+}
+
+function calcularTotales() {
+    var total = 0;
+    document.querySelectorAll('.fila-producto').forEach(function(fila) {
+        var cant = parseInt(fila.querySelector('.cantidad').value) || 0;
+        var precio = parseInt(fila.querySelector('.precio').value) || 0;
+        var sub = cant * precio;
+        fila.querySelector('.subtotal').textContent = 'G. ' + sub.toLocaleString();
+        total += sub;
+    });
+    document.getElementById('totalPedido').textContent = 'G. ' + total.toLocaleString();
+}
+
+function actualizarPrecio(fila) {
+    var pid = fila.querySelector('.sel-producto').value;
+    var tid = fila.querySelector('.sel-tamano').value;
+    var key = pid + '_' + tid;
+    var inp = fila.querySelector('.precio');
+    if (preciosData[key] !== undefined) {
+        inp.value = preciosData[key];
+    } else if (productosData[pid]) {
+        inp.value = productosData[pid];
+    } else {
+        inp.value = 0;
+    }
+    calcularTotales();
+}
+
+function crearFila(datos) {
+    datos = datos || {};
+    var tr = document.createElement('tr');
+    tr.className = 'fila-producto';
+    tr.innerHTML =
+        '<td><select name="producto_id[]" class="form-select form-select-sm sel-producto" required>' +
+        buildOpts(rawProductos, 'id', 'nombre', datos.producto_id || '') +
+        '</select></td>' +
+        '<td><select name="tamano_id[]" class="form-select form-select-sm sel-tamano">' +
+        buildTamanoOpts(datos.tamano_id || '') +
+        '</select></td>' +
+        '<td><input type="number" name="cantidad[]" class="form-control form-control-sm cantidad" min="1" value="' + (datos.cantidad || 1) + '" required></td>' +
+        '<td><input type="number" name="precio_unitario[]" class="form-control form-control-sm precio" min="0" value="' + (datos.precio || 0) + '" required></td>' +
+        '<td><span class="subtotal fw-bold text-primary">G. 0</span></td>' +
+        '<td><input type="text" name="obs_detalle[]" class="form-control form-control-sm" placeholder="Obs..." value="' + (datos.obs || '') + '"></td>' +
+        '<td><button type="button" class="btn btn-sm btn-danger btn-del"><i class="bi bi-trash"></i></button></td>';
+    return tr;
+}
+
+function bindFila(fila) {
+    fila.querySelector('.sel-producto').addEventListener('change', function() { actualizarPrecio(fila); });
+    fila.querySelector('.sel-tamano').addEventListener('change', function() { actualizarPrecio(fila); });
+    fila.querySelector('.cantidad').addEventListener('input', calcularTotales);
+    fila.querySelector('.precio').addEventListener('input', calcularTotales);
+    fila.querySelector('.btn-del').addEventListener('click', function() {
+        if (document.querySelectorAll('.fila-producto').length > 1) {
+            fila.remove();
+            calcularTotales();
+        }
+    });
+}
+
+document.getElementById('btnAgregarFila').addEventListener('click', function() {
+    var fila = crearFila();
+    document.getElementById('filasProductos').appendChild(fila);
+    bindFila(fila);
+    calcularTotales();
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('btnAgregarFila').click();
+});
+</script>
+{% endblock %}

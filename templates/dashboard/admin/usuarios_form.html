@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+{% block title %}{{ accion|default:"Editar" }} Usuario{% endblock %}
+
+{% block content %}
+<div class="container mt-4" style="max-width:600px;">
+    <h1 class="mb-4">
+        {{ accion|default:"Editar" }} Usuario
+        {% if usuario %}— {{ usuario.username }}{% endif %}
+    </h1>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-danger">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Nombre</label>
+                <input type="text" name="first_name" class="form-control"
+                       value="{{ usuario.first_name|default:'' }}">
+            </div>
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Apellido</label>
+                <input type="text" name="last_name" class="form-control"
+                       value="{{ usuario.last_name|default:'' }}">
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Email</label>
+            <input type="email" name="email" class="form-control"
+                   value="{{ usuario.email|default:'' }}">
+        </div>
+
+        {% if not usuario %}
+        <div class="mb-3">
+            <label class="form-label">Nombre de usuario</label>
+            <input type="text" name="username" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Contraseña</label>
+            <input type="password" name="password" class="form-control" required>
+        </div>
+        {% else %}
+        <div class="mb-3">
+            <label class="form-label">Usuario</label>
+            <input type="text" class="form-control"
+                   value="{{ usuario.username }}" disabled>
+            <small class="text-muted">El nombre de usuario no se puede cambiar.</small>
+        </div>
+        {% endif %}
+
+        <div class="mb-3">
+            <label class="form-label">Rol</label>
+            <select name="rol_id" class="form-select">
+                <option value="">Sin rol</option>
+                {% for rol in roles %}
+                    <option value="{{ rol.id }}"
+                        {% if usuario.profile.rol.id == rol.id %}selected{% endif %}>
+                        {{ rol.nombre }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Teléfono</label>
+            <input type="text" name="phone" class="form-control"
+                   value="{% if usuario %}{{ usuario.profile.phone|default:'' }}{% endif %}">
+        </div>
+
+        <div class="mb-4">
+            <label class="form-label">Dirección</label>
+            <input type="text" name="address" class="form-control"
+                   value="{% if usuario %}{{ usuario.profile.address|default:'' }}{% endif %}">
+        </div>
+
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-success">
+                <i class="bi bi-check-circle"></i>
+                {{ accion|default:"Guardar cambios" }}
+            </button>
+            <a href="{% url 'gestion_usuarios' %}" class="btn btn-secondary">
+                Cancelar
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}

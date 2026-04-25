@@ -1,35 +1,23 @@
 from django.db import models
 from django.contrib.auth.models import User
-from django.db.models.signals import post_save
-from django.dispatch import receiver
-from django.utils.text import slugify
-from django.urls import reverse
+from django.utils import timezone
 
-# ==============================
 # Modelos del menú
-# ==============================
-
 class Categoria(models.Model):
     nombre = models.CharField(max_length=100)
     descripcion = models.TextField(blank=True)
-    imagen = models.ImageField(upload_to='categorias/', blank=True, null=True)
+    imagen = models.ImageField(upload_to='images/Categorias/', blank=True, null=True)
     slug = models.SlugField(unique=True)
-
-    #class Meta:
-    #    verbose_name = "Categoría"
-    #   verbose_name_plural = "Categorías"
 
     def __str__(self):
         return self.nombre
 
-    #def get_absolute_url(self):
-    #    return reverse('categoria_detalle', args=[self.slug])
 
 class Sabor(models.Model):
     nombre = models.CharField(max_length=100)
     precio_extra = models.DecimalField(max_digits=6, decimal_places=2, default=0)
     descripcion = models.TextField(blank=True)
-    imagen = models.ImageField(upload_to='sabores/', blank=True, null=True)
+    imagen = models.ImageField(upload_to='images/Sabores/', blank=True, null=True)
     categoria = models.ForeignKey(
         Categoria,
         on_delete=models.SET_NULL,
@@ -38,10 +26,11 @@ class Sabor(models.Model):
         related_name='sabores'
     )
     slug = models.SlugField(unique=True)
-    activo = models.BooleanField(default=True)  # Para disponibilidad
+    activo = models.BooleanField(default=True)
 
     def __str__(self):
         return self.nombre
+
 
 class Addon(models.Model):
     name = models.CharField(max_length=100)
@@ -49,6 +38,7 @@ class Addon(models.Model):
 
     def __str__(self):
         return self.name
+
 
 class Tamano(models.Model):
     nombre = models.CharField(max_length=50)
@@ -59,11 +49,12 @@ class Tamano(models.Model):
         null=True,
         blank=True
     )
-    precio_extra = models.DecimalField(max_digits=6, decimal_places=2, default=0)
+    precio_extra = models.DecimalField(max_digits=10, decimal_places=0, default=0)
     activo = models.BooleanField(default=True)
 
     def __str__(self):
         return self.nombre
+
 
 class Producto(models.Model):
     categoria = models.ForeignKey(
@@ -73,29 +64,28 @@ class Producto(models.Model):
     )
     nombre = models.CharField(max_length=200)
     descripcion = models.TextField(blank=True)
-    precio_base = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    precio_base = models.DecimalField(max_digits=10, decimal_places=0, default=0, blank=True)
     stock = models.IntegerField(default=0)
-    imagen = models.ImageField(upload_to='productos/', blank=True, null=True)
-    #disponible = models.BooleanField(default=True)
+    imagen = models.ImageField(upload_to='images/Productos/', blank=True, null=True)
+    destacado = models.BooleanField(default=False, help_text="Marcar para mostrar en la página principal como destacado")
 
     def __str__(self):
         return self.nombre
 
+
 class ProductoTamano(models.Model):
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE, null=True)
     tamano = models.ForeignKey(Tamano, on_delete=models.CASCADE, null=True)
-    precio = models.DecimalField(max_digits=6, decimal_places=2)
+    precio = models.DecimalField(max_digits=10, decimal_places=0)
 
     class Meta:
-        unique_together = ('producto', 'tamano') 
+        unique_together = ('producto', 'tamano')
 
     def __str__(self):
         return f"{self.producto} - {self.tamano} : ${self.precio}"
 
-# ==============================
-# Modelos del carrito
-# ==============================
 
+# Modelos del carrito
 class Carrito(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -103,36 +93,302 @@ class Carrito(models.Model):
     def __str__(self):
         return f"Carrito de {self.user.username}"
 
+
 class CartItem(models.Model):
     carrito = models.ForeignKey(Carrito, on_delete=models.CASCADE, related_name='items')
-    producto = models.ForeignKey(Producto, on_delete=models.CASCADE, null=True)          # Producto seleccionado
-    tamano = models.ForeignKey(Tamano, on_delete=models.CASCADE, null=True)              # Tamaño elegido
-    sabores = models.ManyToManyField(Sabor, blank=True)                       # Sabores seleccionados
-    addons = models.ManyToManyField(Addon, blank=True)                        # Complementos opcionales
-    cantidad = models.PositiveIntegerField(default=1)                         # Cantidad
-    precio_unitario = models.DecimalField(max_digits=6, decimal_places=2)     # Precio en el momento de agregar
+    producto = models.ForeignKey(Producto, on_delete=models.CASCADE, null=True)
+    tamano = models.ForeignKey(Tamano, on_delete=models.CASCADE, null=True)
+    sabores = models.ManyToManyField(Sabor, blank=True)
+    addons = models.ManyToManyField(Addon, blank=True)
+    cantidad = models.PositiveIntegerField(default=1)
+    precio_unitario = models.DecimalField(max_digits=10, decimal_places=0)
 
     def __str__(self):
         return f"{self.cantidad} x {self.producto.nombre} ({self.tamano.nombre})"
 
-# ==============================
-# Modelos de perfil de usuario
-# ==============================
 
+# Modelos de perfil de usuario
+class Rol(models.Model):
+    nombre = models.CharField(max_length=50, unique=True)
+    descripcion = models.TextField(blank=True)
+
+    def __str__(self):
+        return self.nombre
+
+class Permiso(models.Model):
+    nombre = models.CharField(max_length=50, unique=True)
+    descripcion = models.TextField(blank=True)
+
+    def __str__(self):
+        return self.nombre
+
+class RolPermiso(models.Model):
+    rol = models.ForeignKey(Rol, on_delete=models.CASCADE)
+    permiso = models.ForeignKey(Permiso, on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = ('rol', 'permiso')
+        
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     phone = models.CharField('Teléfono', max_length=20, blank=True)
     address = models.CharField('Dirección', max_length=255, blank=True)
+    fecha_nacimiento = models.DateField(null=True, blank=True)
+    rol = models.ForeignKey(Rol, on_delete=models.SET_NULL, null=True, blank=True)
 
     def __str__(self):
         return f'Perfil de {self.user.username}'
+    
+# Modelos de Stock e Insumos
+class UnidadMedida(models.Model):
+    nombre = models.CharField(max_length=50, unique=True)
+    simbolo = models.CharField(max_length=10)
+    # Factor para convertir a unidad base (gramos o mililitros)
+    # Ej: kg = 1000, g = 1, L = 1000, mL = 1
+    factor_conversion = models.DecimalField(
+        max_digits=10, decimal_places=2, default=1,
+        help_text='Factor para convertir a unidad base. Ej: kg=1000, g=1, L=1000'
+    )
 
-# Señales para crear/guardar perfil automáticamente
-@receiver(post_save, sender=User)
-def create_user_profile(sender, instance, created, **kwargs):
-    if created:
-        Profile.objects.create(user=instance)
+    def __str__(self):
+        return f"{self.nombre} ({self.simbolo})"
 
-@receiver(post_save, sender=User)
-def save_user_profile(sender, instance, **kwargs):
-    instance.profile.save()
+
+class Insumo(models.Model):
+    nombre = models.CharField(max_length=100, unique=True)
+    descripcion = models.TextField(blank=True)
+    unidad_medida = models.ForeignKey(UnidadMedida, on_delete=models.PROTECT)
+    stock_actual = models.DecimalField(max_digits=10, decimal_places=0, default=0)
+    stock_minimo = models.DecimalField(max_digits=10, decimal_places=0, default=0)
+    precio_unitario_promedio = models.DecimalField(max_digits=10, decimal_places=3, default=0)
+    ultima_actualizacion = models.DateTimeField(auto_now=True)
+    ultima_operacion = models.CharField(
+        max_length=50, blank=True, default=''
+    )
+
+    def stock_en_unidad_display(self):
+        """Retorna el stock convertido a la unidad de medida"""
+        return self.stock_actual / self.unidad_medida.factor_conversion
+
+    def convertir_a_base(self, cantidad_en_unidad):
+        """Convierte cantidad en la unidad del insumo a unidad base"""
+        return cantidad_en_unidad * self.unidad_medida.factor_conversion
+
+    def convertir_de_base(self, cantidad_base):
+        """Convierte de unidad base a la unidad del insumo"""
+        return cantidad_base / self.unidad_medida.factor_conversion
+    
+    def __str__(self):
+        return self.nombre
+
+
+class Proveedor(models.Model):
+    nombre = models.CharField(max_length=100, unique=True)
+    ruc = models.CharField(max_length=20, unique=True)
+    contacto = models.CharField(max_length=100, blank=True)
+    telefono = models.CharField(max_length=20, blank=True)
+    direccion = models.CharField(max_length=150, blank=True)
+
+    def __str__(self):
+        return self.nombre
+
+
+class Receta(models.Model):
+    producto = models.ForeignKey(Producto, on_delete=models.CASCADE, related_name='recetas')
+    insumo = models.ForeignKey(Insumo, on_delete=models.PROTECT)
+    cantidad_requerida = models.DecimalField(max_digits=10, decimal_places=0)
+
+    class Meta:
+        unique_together = ('producto', 'insumo')
+
+    def __str__(self):
+        return f"{self.producto.nombre} necesita {self.cantidad_requerida} {self.insumo.unidad_medida.simbolo} de {self.insumo.nombre}"
+
+
+# Modelos de Compras
+class Compra(models.Model):
+    fecha = models.DateTimeField(auto_now_add=True)
+    proveedor = models.ForeignKey(Proveedor, on_delete=models.PROTECT)
+    empleado = models.ForeignKey(User, on_delete=models.PROTECT, related_name='compras_realizadas')
+    total_compra = models.DecimalField(max_digits=12, decimal_places=3, default=0)
+
+    def __str__(self):
+        return f"Compra #{self.id} - {self.proveedor.nombre} - {self.fecha.date()}"
+
+
+class DetalleCompra(models.Model):
+    compra = models.ForeignKey(Compra, on_delete=models.CASCADE, related_name='detalles')
+    insumo = models.ForeignKey(Insumo, on_delete=models.PROTECT)
+    cantidad = models.DecimalField(max_digits=10, decimal_places=3)
+    precio_unitario = models.DecimalField(max_digits=10, decimal_places=3)
+    fecha_ingreso = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        insumo = self.insumo
+        # La cantidad se ingresa en la unidad del insumo (ej: kg)
+        # Se almacena internamente en unidad base (ej: gramos)
+        cantidad_base = self.cantidad * insumo.unidad_medida.factor_conversion
+        stock_anterior = insumo.stock_actual
+        precio_anterior = insumo.precio_unitario_promedio
+        nuevo_stock = stock_anterior + cantidad_base
+
+        if nuevo_stock > 0:
+            insumo.precio_unitario_promedio = (
+                (stock_anterior * precio_anterior) +
+                (cantidad_base * self.precio_unitario)
+            ) / nuevo_stock
+
+        insumo.stock_actual = nuevo_stock
+        insumo.ultima_operacion = f'Compra: +{self.cantidad} {insumo.unidad_medida.simbolo}'
+        insumo.save()
+
+    def __str__(self):
+        return f"{self.cantidad} {self.insumo.unidad_medida.simbolo} de {self.insumo.nombre}"
+
+
+# Modelos de Pedidos
+class Pedido(models.Model):
+    ESTADOS = [
+        ('pendiente', 'Pendiente'),
+        ('confirmado', 'Confirmado'),
+        ('en_preparacion', 'En preparación'),
+        ('listo', 'Listo para retirar'),
+        ('entregado', 'Entregado'),
+        ('cancelado', 'Cancelado'),
+    ]
+    TIPOS = [
+        ('local', 'En local'),
+        ('online', 'Online (pick-up)'),
+    ]
+    METODOS_PAGO = [
+        ('efectivo', 'Efectivo'),
+        ('transferencia', 'Transferencia bancaria'),
+    ]
+    metodo_pago = models.CharField(
+        max_length=20,
+        choices=METODOS_PAGO,
+        default='efectivo',
+        blank=True
+    )
+    pago_confirmado = models.BooleanField(default=False)
+    cliente = models.ForeignKey(User, on_delete=models.PROTECT, related_name='pedidos', null=True, blank=True)
+    empleado_cajero = models.ForeignKey(User, on_delete=models.PROTECT, related_name='pedidos_registrados', null=True, blank=True)
+    fecha_pedido = models.DateTimeField(auto_now_add=True)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    estado = models.CharField(max_length=20, choices=ESTADOS, default='pendiente')
+    tipo_pedido = models.CharField(max_length=20, choices=TIPOS, default='local')
+    total = models.DecimalField(max_digits=12, decimal_places=0, default=0)
+    observaciones = models.TextField(blank=True)
+
+    def __str__(self):
+        return f"Pedido #{self.id} - {self.get_estado_display()}"
+
+    def calcular_total(self):
+        total = sum(detalle.subtotal for detalle in self.detalles.all())
+        self.total = total
+        self.save()
+        return total
+
+
+class DetallePedido(models.Model):
+    pedido = models.ForeignKey(Pedido, on_delete=models.CASCADE, related_name='detalles')
+    producto = models.ForeignKey(Producto, on_delete=models.PROTECT)
+    tamano = models.ForeignKey(Tamano, on_delete=models.PROTECT, null=True, blank=True)
+    cantidad = models.PositiveIntegerField(default=1)
+    precio_unitario = models.DecimalField(max_digits=10, decimal_places=0)
+    subtotal = models.DecimalField(max_digits=12, decimal_places=0, editable=False)
+    sabores = models.ManyToManyField(Sabor, blank=True)
+    addons = models.ManyToManyField(Addon, blank=True)
+    observaciones = models.TextField(blank=True)
+
+    def save(self, *args, **kwargs):
+        self.subtotal = self.precio_unitario * self.cantidad
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.cantidad} x {self.producto.nombre}"
+
+
+# Modelos de Caja
+class Caja(models.Model):
+    ESTADOS_CAJA = [
+        ('abierta', 'Abierta'),
+        ('cerrada', 'Cerrada'),
+    ]
+    empleado_cajero = models.ForeignKey(User, on_delete=models.PROTECT, related_name='cajas')
+    fecha_apertura = models.DateTimeField(auto_now_add=True)
+    monto_inicial = models.DecimalField(max_digits=12, decimal_places=0)
+    fecha_cierre = models.DateTimeField(null=True, blank=True)
+    monto_final_sistema = models.DecimalField(max_digits=12, decimal_places=0, null=True, blank=True)
+    monto_final_contado = models.DecimalField(max_digits=12, decimal_places=0, null=True, blank=True)
+    estado = models.CharField(max_length=10, choices=ESTADOS_CAJA, default='abierta')
+
+    def __str__(self):
+        return f"Caja #{self.id} ({self.estado}) - {self.fecha_apertura.date()}"
+
+    def cerrar(self, monto_contado):
+        self.fecha_cierre = timezone.now()
+        self.monto_final_contado = monto_contado
+        total_ingresos = self.ingresos.aggregate(total=models.Sum('monto'))['total'] or 0
+        total_egresos = self.egresos.aggregate(total=models.Sum('monto'))['total'] or 0
+        self.monto_final_sistema = self.monto_inicial + total_ingresos - total_egresos
+        self.estado = 'cerrada'
+        self.save()
+
+
+class Ingreso(models.Model):
+    TIPOS_INGRESO = [
+        ('venta', 'Venta'),
+        ('otro', 'Otro'),
+    ]
+    caja = models.ForeignKey(Caja, on_delete=models.CASCADE, related_name='ingresos')
+    pedido = models.OneToOneField(Pedido, on_delete=models.SET_NULL, null=True, blank=True, related_name='ingreso')
+    monto = models.DecimalField(max_digits=12, decimal_places=0)
+    tipo_ingreso = models.CharField(max_length=50, choices=TIPOS_INGRESO, default='venta')
+    descripcion = models.CharField(max_length=150, blank=True)
+    fecha = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Ingreso ${self.monto} - {self.tipo_ingreso}"
+
+
+class Egreso(models.Model):
+    TIPOS_EGRESO = [
+        ('compra_insumos', 'Compra de insumos'),
+        ('gasto_operativo', 'Gasto operativo'),
+        ('otro', 'Otro'),
+    ]
+    caja = models.ForeignKey(Caja, on_delete=models.CASCADE, related_name='egresos')
+    responsable = models.ForeignKey(User, on_delete=models.PROTECT, related_name='egresos_registrados')
+    monto = models.DecimalField(max_digits=12, decimal_places=0)
+    motivo = models.CharField(max_length=100)
+    descripcion = models.TextField(blank=True)
+    fecha = models.DateTimeField(auto_now_add=True)
+    tipo_egreso = models.CharField(
+    max_length=20, choices=TIPOS_EGRESO, default='gasto_operativo'
+    )
+
+    def __str__(self):
+        return f"Egreso ${self.monto} - {self.motivo}"
+
+
+# Modelos de Promociones
+class Promocion(models.Model):
+    TIPO_DESCUENTO = [
+        ('porcentaje', 'Porcentaje'),
+        ('monto_fijo', 'Monto fijo'),
+    ]
+    nombre = models.CharField(max_length=100, unique=True)
+    descripcion = models.TextField(blank=True)
+    fecha_inicio = models.DateField()
+    fecha_fin = models.DateField()
+    tipo_descuento = models.CharField(max_length=20, choices=TIPO_DESCUENTO, default='porcentaje')
+    valor_descuento = models.DecimalField(max_digits=10, decimal_places=0)
+    productos = models.ManyToManyField(Producto, blank=True, related_name='promociones_aplicadas')
+    activo = models.BooleanField(default=True)
+
+    def __str__(self):
+        return self.nombre
+
+

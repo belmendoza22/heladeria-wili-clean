@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+{% block title %}Panel Empleado{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">Panel de Empleado</h1>
+
+    {% if not caja_abierta %}
+    <div class="alert alert-warning d-flex align-items-center gap-2 mb-4">
+        <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+        <div>
+            <strong>No hay caja abierta.</strong>
+            Debés abrir la caja antes de registrar pedidos o confirmar pagos.
+            <a href="{% url 'apertura_caja' %}" class="btn btn-warning btn-sm ms-2">
+                <i class="bi bi-lock-fill"></i> Abrir caja ahora
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <div class="col-md-3">
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Pedidos pendientes</h5>
+                    <p class="card-text">{{ pedidos|length }} pedidos esperando</p>
+                    <a href="{% url 'gestion_pedidos' %}" class="btn btn-warning btn-sm">
+                        <i class="bi bi-list-ul"></i> Ver pedidos
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Registrar pedido</h5>
+                    <p class="card-text">Nuevo pedido en el local</p>
+                    <a href="{% url 'registrar_pedido' %}" class="btn btn-primary btn-sm">
+                        <i class="bi bi-plus-circle"></i> Registrar
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Vista de despacho</h5>
+                    <p class="card-text">Pedidos en preparación</p>
+                    <a href="{% url 'vista_despacho' %}" class="btn btn-warning btn-sm">
+                        <i class="bi bi-display"></i> Ver despacho
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Caja</h5>
+                    <p class="card-text">Apertura y cierre diario</p>
+                    <a href="{% url 'gestion_caja' %}" class="btn btn-success btn-sm">
+                        <i class="bi bi-cash-register"></i> Gestionar caja
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if pedidos %}
+    <h4 class="mt-4">Pedidos recientes</h4>
+    <table class="table table-bordered">
+        <thead class="table-light">
+            <tr>
+                <th>#</th>
+                <th>Cliente</th>
+                <th>Total</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for pedido in pedidos %}
+            <tr>
+                <td>{{ pedido.id }}</td>
+                <td>
+                    {% if pedido.cliente %}
+                        {{ pedido.cliente.get_full_name|default:pedido.cliente.username }}
+                    {% else %}
+                        Sin cliente
+                    {% endif %}
+                </td>
+                <td>G. {{ pedido.total }}</td>
+                <td>
+                    {% if pedido.estado == 'pendiente' %}
+                        <span class="badge bg-secondary">Pendiente</span>
+                    {% elif pedido.estado == 'confirmado' %}
+                        <span class="badge bg-primary">Confirmado</span>
+                    {% elif pedido.estado == 'en_preparacion' %}
+                        <span class="badge bg-warning text-dark">En preparación</span>
+                    {% elif pedido.estado == 'listo' %}
+                        <span class="badge bg-success">Listo</span>
+                    {% elif pedido.estado == 'entregado' %}
+                        <span class="badge bg-dark">Entregado</span>
+                    {% elif pedido.estado == 'cancelado' %}
+                        <span class="badge bg-danger">Cancelado</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="{% url 'detalle_pedido' pedido.id %}"
+                       class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-eye"></i> Ver
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+</div>
+{% endblock %}

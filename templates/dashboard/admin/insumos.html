@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+{% block title %}Gestión de Insumos{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Gestión de Insumos</h1>
+        <div class="d-flex gap-2">
+            <a href="{% url 'crear_unidad_medida' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-plus"></i> Nueva Unidad
+            </a>
+            <a href="{% url 'crear_insumo' %}" class="btn btn-success">
+                <i class="bi bi-plus-circle"></i> Nuevo Insumo
+            </a>
+        </div>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-success alert-dismissible fade show">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    {% if insumos_bajos_count > 0 %}
+        <div class="alert alert-warning d-flex align-items-center gap-2">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            <strong>{{ insumos_bajos_count }} insumo(s) con stock bajo o agotado.</strong>
+            Revisá la columna Stock.
+        </div>
+    {% endif %}
+
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th>#</th>
+                    <th>Nombre</th>
+                    <th>Unidad</th>
+                    <th>Stock actual</th>
+                    <th>Stock mínimo</th>
+                    <th>Precio unitario</th>
+                    <th>Última actualización</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for insumo in insumos %}
+                <tr>
+                    <td>{{ insumo.id }}</td>
+                    <td>{{ insumo.nombre }}</td>
+                    <td>{{ insumo.unidad_medida.simbolo }}</td>
+                    <td>
+                        {% if insumo.stock_actual <= 0 %}
+                            <span class="badge bg-danger">
+                                {{ insumo.stock_actual }} — Agotado
+                            </span>
+                        {% elif insumo.stock_actual <= insumo.stock_minimo %}
+                            <span class="badge bg-warning text-dark">
+                                {{ insumo.stock_en_unidad_display|floatformat:2 }}
+                                {{ insumo.unidad_medida.simbolo }} — Stock Bajo
+                            </span>
+                        {% else %}
+                            <span class="badge bg-success">
+                                {{ insumo.stock_en_unidad_display|floatformat:2 }}
+                                {{ insumo.unidad_medida.simbolo }}
+                            </span>
+                        {% endif %}
+                    </td>
+                    <td>{{ insumo.stock_minimo }}</td>
+                    <td>G. {{ insumo.precio_unitario_promedio|floatformat:0 }}</td>
+                    <td class="text-muted small">
+                        {{ insumo.ultima_actualizacion|date:"d/m/Y H:i" }}
+                    </td>
+                    <td>
+                        <a href="{% url 'editar_insumo' insumo.id %}"
+                           class="btn btn-sm btn-warning">
+                            <i class="bi bi-pencil"></i> Editar
+                        </a>
+                        <form method="post"
+                              action="{% url 'eliminar_insumo' insumo.id %}"
+                              style="display:inline;"
+                              onsubmit="return confirm('¿Eliminar {{ insumo.nombre }}?')">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-danger">
+                                <i class="bi bi-trash"></i> Eliminar
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="text-center text-muted">
+                        No hay insumos registrados.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary mt-3">
+        <i class="bi bi-arrow-left"></i> Volver al panel
+    </a>
+</div>
+{% endblock %}

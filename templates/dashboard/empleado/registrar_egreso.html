@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+{% block title %}Registrar Egreso{% endblock %}
+
+{% block content %}
+<div class="container mt-4" style="max-width:500px;">
+    <h1 class="mb-4">Registrar Egreso</h1>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert
+                {% if message.tags == 'success' %}alert-success
+                {% else %}alert-danger{% endif %}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="d-flex justify-content-between">
+                <span class="text-muted">Caja #{{ caja.id }}</span>
+                <span>Balance disponible:
+                    <strong class="text-success">
+                        G. {{ balance_actual|floatformat:0 }}
+                    </strong>
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+
+        <div class="mb-3">
+            <label class="form-label">Tipo de egreso</label>
+            <select name="tipo_egreso" class="form-select" required>
+                {% for valor, nombre in tipos %}
+                    <option value="{{ valor }}">{{ nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Motivo</label>
+            <input type="text" name="motivo" class="form-control"
+                   placeholder="Ej: Compra de insumos" required>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Monto (Gs.)</label>
+            <input type="number" name="monto" id="montoEgreso"
+                   class="form-control"
+                   placeholder="0" min="1"
+                   max="{{ balance_actual|floatformat:0 }}"
+                   required>
+            <small class="text-muted">
+                Máximo disponible:
+                G. {{ balance_actual|floatformat:0 }}
+            </small>
+            <div id="alertaNegativo" class="alert alert-danger mt-2"
+                 style="display:none;">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                El monto supera el balance disponible.
+                La caja no puede quedar negativa.
+            </div>
+        </div>
+
+        <div class="mb-4">
+            <label class="form-label">Descripción (opcional)</label>
+            <textarea name="descripcion" class="form-control"
+                      rows="2"></textarea>
+        </div>
+
+        <div class="d-flex gap-2">
+            <button type="submit" id="btnEgreso"
+                    class="btn btn-warning w-100">
+                <i class="bi bi-dash-circle"></i> Registrar egreso
+            </button>
+            <a href="{% url 'gestion_caja' %}" class="btn btn-secondary">
+                Cancelar
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+var balanceActual = {{ balance_actual|floatformat:0 }};
+var inputMonto = document.getElementById('montoEgreso');
+var alerta = document.getElementById('alertaNegativo');
+var btn = document.getElementById('btnEgreso');
+
+inputMonto.addEventListener('input', function() {
+    var monto = parseFloat(this.value) || 0;
+    if (monto > balanceActual) {
+        alerta.style.display = 'block';
+        btn.disabled = true;
+    } else {
+        alerta.style.display = 'none';
+        btn.disabled = false;
+    }
+});
+</script>
+{% endblock %}
