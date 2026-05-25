@@ -825,80 +825,159 @@ def eliminar_proveedor(request, proveedor_id):
 
 # Gestión de pedidos — Empleado
 @empleado_required
+@login_required
 def registrar_pedido(request):
-    # Verificar caja abierta
-    caja_abierta = Caja.objects.filter(
+    from django.contrib.auth.models import User
+    import json
+
+    caja = Caja.objects.filter(
         empleado_cajero=request.user,
         estado='abierta'
     ).first()
 
-    if not caja_abierta:
-        messages.error(
-            request,
-            'Debés abrir la caja antes de registrar pedidos.'
-        )
-        return redirect('apertura_caja')
+    clientes = User.objects.filter(
+        profile__rol__nombre='Cliente'
+    ).order_by('first_name')
 
-    clientes = User.objects.filter(profile__rol__nombre='Cliente')
-    productos = Producto.objects.select_related('categoria').all()
-    tamanos = Tamano.objects.filter(activo=True)
+    productos = Producto.objects.filter(
+        stock__gt=0
+    ).select_related('categoria').prefetch_related(
+        'productotamano_set__tamano'
+    ).order_by('categoria__nombre', 'nombre')
 
-    precios_data = {}
-    for pt in ProductoTamano.objects.select_related('producto', 'tamano').all():
-        key = f"{pt.producto_id}_{pt.tamano_id}"
-        precios_data[key] = int(pt.precio)
+    # Construir diccionario de productos con sus tamaños y precios
+    productos_json = {}
+    for prod in productos:
+        tamanos_list = []
+        for pt in prod.productotamano_set.all():
+            if not pt.tamano.solo_produccion and pt.precio > 0:
+                tamanos_list.append({
+                    'id':         pt.tamano.id,
+                    'nombre':     pt.tamano.nombre,
+                    'precio':     int(pt.precio),
+                    'maxSabores': pt.tamano.max_sabores,
+                })
+        productos_json[str(prod.id)] = {
+            'nombre':    prod.nombre,
+            'categoria': prod.categoria.id,
+            'tamanos':   tamanos_list,
+        }
+
+    # Sabores por categoría
+    from collections import defaultdict
+    sabores_por_cat = defaultdict(list)
+    sabores_qs = Sabor.objects.filter(
+        activo=True
+    ).select_related(
+        'categoria', 'insumo_stock'
+    ).prefetch_related('categorias_extra')
+
+    for sabor in sabores_qs:
+        disponible = True
+        if sabor.insumo_stock:
+            disponible = float(sabor.insumo_stock.stock_actual) > 0
+        entrada = {
+            'id':        sabor.id,
+            'nombre':    sabor.nombre,
+            'imagen':    sabor.imagen.url if sabor.imagen else None,
+            'disponible': disponible,
+        }
+        if sabor.categoria:
+            sabores_por_cat[str(sabor.categoria.id)].append(entrada)
+        for cat_extra in sabor.categorias_extra.all():
+            sabores_por_cat[str(cat_extra.id)].append(entrada)
 
     if request.method == 'POST':
-        cliente_id = request.POST.get('cliente_id')
-        tipo_pedido = request.POST.get('tipo_pedido', 'local')
+        # — guardar pedido —
+        cliente_id    = request.POST.get('cliente_id') or None
+        tipo_pedido   = request.POST.get('tipo_pedido', 'local')
         observaciones = request.POST.get('observaciones', '')
+        producto_ids  = request.POST.getlist('producto_id[]')
+        tamano_ids    = request.POST.getlist('tamano_id[]')
+        cantidades    = request.POST.getlist('cantidad[]')
+        precios       = request.POST.getlist('precio_unitario[]')
+        obs_detalles  = request.POST.getlist('obs_detalle[]')
+
+        if not producto_ids:
+            messages.error(request, 'Agregá al menos un producto.')
+            return redirect('registrar_pedido')
 
         pedido = Pedido.objects.create(
-            cliente_id=cliente_id if cliente_id else None,
-            empleado_cajero=request.user,
-            tipo_pedido=tipo_pedido,
-            observaciones=observaciones,
-            estado='confirmado',
+            cliente_id     = cliente_id,
+            tipo_pedido    = tipo_pedido,
+            observaciones  = observaciones,
+            estado         = 'pendiente',
+            empleado_cajero= request.user,
+            total          = 0,
         )
 
-        producto_ids = request.POST.getlist('producto_id[]')
-        tamano_ids = request.POST.getlist('tamano_id[]')
-        cantidades = request.POST.getlist('cantidad[]')
+        total = 0
+        for i, pid in enumerate(producto_ids):
+            if not pid:
+                continue
+            try:
+                producto  = Producto.objects.get(id=pid)
+                tamano_id = tamano_ids[i] if i < len(tamano_ids) else None
+                tamano    = None
+                if tamano_id:
+                    try:
+                        tamano = Tamano.objects.get(id=tamano_id)
+                    except Tamano.DoesNotExist:
+                        pass
+                cantidad = int(cantidades[i]) if i < len(cantidades) else 1
+                precio   = int(float(precios[i])) if i < len(precios) else 0
+                obs_det  = obs_detalles[i] if i < len(obs_detalles) else ''
+                subtotal = cantidad * precio
 
-        for prod_id, tam_id, cantidad in zip(producto_ids, tamano_ids, cantidades):
-            if prod_id and cantidad:
-                key = f"{prod_id}_{tam_id}"
-                precio = precios_data.get(key, 0)
-                DetallePedido.objects.create(
-                    pedido=pedido,
-                    producto_id=prod_id,
-                    tamano_id=tam_id if tam_id else None,
-                    cantidad=int(cantidad),
-                    precio_unitario=precio,
+                detalle = DetallePedido.objects.create(
+                    pedido          = pedido,
+                    producto        = producto,
+                    tamano          = tamano,
+                    cantidad        = cantidad,
+                    precio_unitario = precio,
+                    subtotal        = subtotal,
+                    observaciones   = obs_det,
                 )
 
-        pedido.calcular_total()
+                # Sabores
+                sabor_key = f'sabores_producto_{i}'
+                sab_ids   = request.POST.get(sabor_key, '')
+                if sab_ids:
+                    for sid in sab_ids.split(','):
+                        sid = sid.strip()
+                        if sid:
+                            try:
+                                detalle.sabores.add(
+                                    Sabor.objects.get(id=int(sid))
+                                )
+                            except Sabor.DoesNotExist:
+                                pass
 
-        # Registrar ingreso si el pago es en el momento
-        Ingreso.objects.create(
-            caja=caja_abierta,
-            pedido=pedido,
-            monto=pedido.total,
-            tipo_ingreso='venta',
-            descripcion=f'Pedido #{pedido.id} — local',
+                total += subtotal
+            except (Producto.DoesNotExist, ValueError):
+                continue
+
+        pedido.total = total
+        pedido.save()
+
+        messages.success(
+            request,
+            f'Pedido #{pedido.id} registrado correctamente.'
         )
-
-        messages.success(request, f'Pedido #{pedido.id} registrado exitosamente.')
-        return redirect('gestion_pedidos')
+        return redirect('detalle_pedido', pedido_id=pedido.id)
 
     context = {
-        'clientes': clientes,
-        'productos': productos,
-        'tamanos': tamanos,
-        'precios_data': precios_data,
-        'caja': caja_abierta,
+        'caja':               caja,
+        'clientes':           clientes,
+        'productos':          productos,
+        'productos_json':     json.dumps(productos_json),
+        'sabores_json':       json.dumps(dict(sabores_por_cat)),
     }
-    return render(request, 'dashboard/empleado/registrar_pedido.html', context)
+    return render(
+        request,
+        'dashboard/empleado/registrar_pedido.html',
+        context
+    )
 
 
 @empleado_required

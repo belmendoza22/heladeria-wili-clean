@@ -12,6 +12,20 @@ class Categoria(models.Model):
     def __str__(self):
         return self.nombre
 
+class Subcategoria(models.Model):
+    nombre    = models.CharField(max_length=100)
+    categoria = models.ForeignKey(
+        Categoria,
+        on_delete=models.CASCADE,
+        related_name='subcategorias'
+    )
+    activo    = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['nombre']
+
+    def __str__(self):
+        return f'{self.categoria.nombre} — {self.nombre}'
 
 class Sabor(models.Model):
     nombre = models.CharField(max_length=100)
@@ -20,6 +34,7 @@ class Sabor(models.Model):
     imagen = models.ImageField(upload_to='images/Sabores/', blank=True, null=True)
     categoria = models.ForeignKey(Categoria,on_delete=models.SET_NULL,null=True,blank=True,related_name='sabores')
     categorias_extra = models.ManyToManyField(Categoria,blank=True,related_name='sabores_extra',help_text='sabores')
+    subcategoria = models.ForeignKey('Subcategoria',on_delete=models.SET_NULL,null=True,blank=True,related_name='sabores')
     slug = models.SlugField(unique=True)
     activo = models.BooleanField(default=True)
     gramos_por_porcion = models.DecimalField(max_digits=8, decimal_places=2, default=0,
@@ -32,20 +47,6 @@ class Sabor(models.Model):
     def __str__(self):
         return self.nombre
 
-    class Subcategoria(models.Model):
-        nombre    = models.CharField(max_length=100)
-        categoria = models.ForeignKey(
-            Categoria,
-            on_delete=models.CASCADE,
-            related_name='subcategorias'
-        )
-        activo    = models.BooleanField(default=True)
-
-        class Meta:
-            ordering = ['nombre']
-
-        def __str__(self):
-            return f'{self.categoria.nombre} → {self.nombre}'
 
 
 class Addon(models.Model):

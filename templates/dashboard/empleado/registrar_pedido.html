@@ -1,226 +1,692 @@
 {% extends 'base.html' %}
+{% load filtros %}
 {% block title %}Registrar Pedido{% endblock %}
 
 {% block content %}
-<div class="container mt-4" style="max-width:900px;">
+<div class="container mt-4" style="max-width:1000px;">
+
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1>Registrar Nuevo Pedido</h1>
-        <a href="{% url 'gestion_pedidos' %}" class="btn btn-outline-secondary btn-sm">
+        <div>
+            <h1 class="mb-0">Registrar Pedido</h1>
+            <small class="text-muted">
+                Completá los datos y agregá los productos
+            </small>
+        </div>
+        <a href="{% url 'gestion_pedidos' %}"
+           class="btn btn-outline-secondary btn-sm">
             <i class="bi bi-list-ul"></i> Ver pedidos
         </a>
     </div>
 
     {% if messages %}
         {% for message in messages %}
-            <div class="alert
-                {% if message.tags == 'success' %}alert-success
-                {% elif message.tags == 'error' %}alert-danger
-                {% else %}alert-warning{% endif %}
-                alert-dismissible fade show">
-                {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
+        <div class="alert
+            {% if message.tags == 'success' %}alert-success
+            {% elif message.tags == 'error' %}alert-danger
+            {% else %}alert-warning{% endif %}
+            alert-dismissible fade show">
+            {{ message }}
+            <button type="button" class="btn-close"
+                    data-bs-dismiss="alert"></button>
+        </div>
         {% endfor %}
     {% endif %}
 
-    <!-- Info de caja activa -->
-    <div class="alert alert-info py-2 mb-4">
-        <i class="bi bi-cash-stack"></i>
-        <strong>Caja activa:</strong>
-        {% if caja %}
-            Caja #{{ caja.id }} — abierta el {{ caja.fecha_apertura|date:"d/m/Y H:i" }}
-        {% else %}
-            <span class="text-danger">Sin caja abierta — no podés registrar pedidos.</span>
-        {% endif %}
+    {% if caja %}
+    <div class="alert alert-success py-2 mb-4 d-flex
+                align-items-center gap-2">
+        <i class="bi bi-cash-stack fs-5"></i>
+        <div>
+            <strong>Caja #{{ caja.id }} activa</strong>
+            <span class="text-muted ms-2 small">
+                Abierta el {{ caja.fecha_apertura|date:"d/m/Y"}}
+                a las {{ caja.fecha_apertura|date:"H:i" }}
+            </span>
+        </div>
     </div>
+    {% else %}
+    <div class="alert alert-danger py-2 mb-4">
+        <i class="bi bi-exclamation-triangle"></i>
+        <strong>Sin caja abierta</strong> — no podés registrar pedidos.
+        <a href="{% url 'apertura_caja' %}" class="alert-link ms-2">
+            Abrir caja
+        </a>
+    </div>
+    {% endif %}
 
     <form method="post" id="formPedido">
         {% csrf_token %}
 
-        <div class="row mb-3">
-            <div class="col-md-6">
-                <label class="form-label">Cliente (opcional)</label>
-                <select name="cliente_id" class="form-select">
-                    <option value="">Sin cliente registrado</option>
-                    {% for cliente in clientes %}
-                        <option value="{{ cliente.id }}">
-                            {{ cliente.get_full_name|default:cliente.username }}
-                        </option>
-                    {% endfor %}
-                </select>
+        <div class="card mb-4">
+            <div class="card-header fw-bold bg-dark text-white">
+                <i class="bi bi-person-fill me-1"></i>
+                Datos del pedido
             </div>
-            <div class="col-md-6">
-                <label class="form-label">Tipo de pedido</label>
-                <select name="tipo_pedido" class="form-select">
-                    <option value="local">En local</option>
-                    <option value="online">Online (pick-up)</option>
-                </select>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Cliente</label>
+                        <select name="cliente_id" class="form-select">
+                            <option value="">Sin cliente registrado</option>
+                            {% for cliente in clientes %}
+                            <option value="{{ cliente.id }}">
+                                {{ cliente.get_full_name|default:cliente.username }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Tipo de pedido</label>
+                        <select name="tipo_pedido" class="form-select">
+                            <option value="local">🏪 En local</option>
+                            <option value="online">📱 Online (pick-up)</option>
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Observaciones</label>
+                        <textarea name="observaciones"
+                                  class="form-control" rows="2"
+                                  placeholder="Alergias, preferencias...">
+                        </textarea>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <div class="mb-4">
-            <label class="form-label">Observaciones generales</label>
-            <textarea name="observaciones" class="form-control"
-                      rows="2" placeholder="Observaciones del pedido..."></textarea>
-        </div>
-
-        <h5 class="mb-3">Productos del pedido</h5>
-        <div class="table-responsive">
-            <table class="table table-bordered" id="tablaProductos">
-                <thead class="table-light">
-                    <tr>
-                        <th>Producto</th>
-                        <th>Tamaño</th>
-                        <th>Cantidad</th>
-                        <th>Precio (Gs.)</th>
-                        <th>Subtotal</th>
-                        <th>Obs.</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody id="filasProductos"></tbody>
-            </table>
-        </div>
-
-        <button type="button" class="btn btn-outline-primary btn-sm mb-4"
-                id="btnAgregarFila">
-            <i class="bi bi-plus"></i> Agregar producto
-        </button>
-
-        <div class="d-flex justify-content-between align-items-center mt-3">
-            <h5>Total:
-                <span id="totalPedido" class="text-success fw-bold">G. 0</span>
-            </h5>
-            <div class="d-flex gap-2">
-                <a href="{% url 'gestion_pedidos' %}" class="btn btn-secondary">
-                    Cancelar
-                </a>
-                <button type="submit" class="btn btn-success"
-                        {% if not caja %}disabled title="Abrí la caja primero"{% endif %}>
-                    <i class="bi bi-check-circle"></i> Registrar Pedido
+        <div class="card mb-4">
+            <div class="card-header fw-bold bg-dark text-white
+                         d-flex justify-content-between align-items-center">
+                <span>
+                    <i class="bi bi-bag me-1"></i>
+                    Productos del pedido
+                </span>
+                <button type="button" class="btn btn-success btn-sm"
+                        id="btnAgregarFila">
+                    <i class="bi bi-plus-circle"></i> Agregar producto
                 </button>
+            </div>
+            <div class="card-body">
+                <div id="listaProductos">
+                    <!-- filas JS -->
+                </div>
+                <div id="mensajeVacio" class="text-center text-muted py-4">
+                    <i class="bi bi-bag-plus" style="font-size:2.5rem;
+                       color:#c6b7f5;"></i>
+                    <p class="mt-2">
+                        Hacé clic en
+                        <strong>Agregar producto</strong>
+                        para empezar
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4"
+             style="border-color:#9b87f5; border-width:2px;">
+            <div class="card-body d-flex justify-content-between
+                         align-items-center">
+                <div>
+                    <span class="text-muted">Total:</span>
+                    <strong class="text-success ms-2"
+                            style="font-size:1.8rem;"
+                            id="totalPedido">G. 0</strong>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="{% url 'gestion_pedidos' %}"
+                       class="btn btn-secondary">
+                        Cancelar
+                    </a>
+                    <button type="submit" class="btn btn-success btn-lg"
+                            id="btnSubmit"
+                            {% if not caja %}disabled{% endif %}>
+                        <i class="bi bi-check-circle"></i>
+                        Registrar Pedido
+                    </button>
+                </div>
             </div>
         </div>
     </form>
 </div>
+
+<!-- Modal sabores -->
+<div class="modal fade" id="modalSabores" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header text-white"
+                 style="background:linear-gradient(
+                        135deg,#9b87f5,#7b68ee);">
+                <div>
+                    <h5 class="modal-title mb-0">
+                        <i class="bi bi-palette2"></i>
+                        Elegir sabores
+                    </h5>
+                    <small class="opacity-75"
+                           id="modalNombreProductoSabor"></small>
+                </div>
+                <button type="button" class="btn-close btn-close-white"
+                        data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="d-flex justify-content-between
+                            align-items-center mb-3">
+                    <span class="text-muted small">
+                        Elegí hasta
+                        <strong id="modalMaxSabores"></strong>
+                        sabor(es)
+                    </span>
+                    <span class="badge bg-secondary"
+                          id="badgeContadorSabores">
+                        0 elegidos
+                    </span>
+                </div>
+                <div class="progress mb-3" style="height:6px;">
+                    <div class="progress-bar bg-primary"
+                         id="progressSaboresModal"
+                         style="width:0%; transition:width .3s;">
+                    </div>
+                </div>
+                <div id="gridSaboresModal" class="row g-2"></div>
+                <div id="alertaMaxSaboresModal"
+                     class="alert alert-warning mt-3 py-2"
+                     style="display:none;">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    Ya elegiste el máximo permitido.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary"
+                        data-bs-dismiss="modal">
+                    Cancelar
+                </button>
+                <button type="button" class="btn btn-primary"
+                        id="btnConfirmarSabores">
+                    <i class="bi bi-check-circle"></i>
+                    Confirmar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.fila-producto-card {
+    background: #fafafe;
+    border: 1.5px solid #e0d8ff;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+    position: relative;
+    transition: border-color .2s;
+}
+.fila-producto-card:hover { border-color: #9b87f5; }
+.numero-fila {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px; height: 26px;
+    background: #9b87f5;
+    color: white;
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: bold;
+    margin-right: 8px;
+}
+.sabor-chip {
+    display: inline-block;
+    background: #f0ecff;
+    color: #7b68ee;
+    border: 1px solid #c6b7f5;
+    border-radius: 20px;
+    padding: 2px 10px;
+    font-size: 11px;
+    margin: 2px;
+}
+.sabor-mini-card {
+    cursor: pointer;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 2px solid #dee2e6;
+    transition: all .2s;
+    background: white;
+}
+.sabor-mini-card:hover:not(.agotado) {
+    border-color: #9b87f5;
+    box-shadow: 0 2px 8px rgba(155,135,245,.3);
+}
+.sabor-mini-card.selected {
+    border-color: #9b87f5 !important;
+    background: #f0ecff;
+    box-shadow: 0 3px 12px rgba(155,135,245,.4);
+}
+.sabor-mini-card.agotado {
+    opacity: .45;
+    filter: grayscale(80%);
+    cursor: not-allowed;
+}
+.subtotal-display {
+    background: #f0ecff;
+    border: 1.5px solid #c6b7f5;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-weight: bold;
+    color: #7b68ee;
+    font-size: 15px;
+}
+</style>
 {% endblock %}
 
 {% block extra_js %}
-<div id="data-store"
-     data-productos='[{% for p in productos %}{"id":{{ p.id }},"precio":{{ p.precio_base|default:0|floatformat:0 }},"nombre":"{{ p.nombre|escapejs }}"}{% if not forloop.last %},{% endif %}{% endfor %}]'
-     data-tamanos='[{% for t in tamanos %}{"id":{{ t.id }},"nombre":"{{ t.nombre|escapejs }}"}{% if not forloop.last %},{% endif %}{% endfor %}]'
-     data-precios='{ {% for key, precio in precios_data.items %}"{{ key }}":{{ precio|floatformat:0 }}{% if not forloop.last %},{% endif %}{% endfor %} }'
-     style="display:none;">
-</div>
-
 <script>
-var store = document.getElementById('data-store');
-var rawProductos = JSON.parse(store.dataset.productos || '[]');
-var rawTamanos   = JSON.parse(store.dataset.tamanos   || '[]');
-var preciosData  = JSON.parse(store.dataset.precios   || '{}');
-var productosData = {};
-rawProductos.forEach(function(p) { productosData[p.id] = p.precio; });
+// ── Datos ────────────────────────────────────────────────────────────
+var PRODUCTOS = {{ productos_json|safe }};
+var SABORES   = {{ sabores_json|safe }};
 
-function buildProductoOpts(selected) {
-    var html = '<option value="">Seleccioná</option>';
-    rawProductos.forEach(function(p) {
-        var sel = p.id == selected ? ' selected' : '';
-        html += '<option value="' + p.id + '"' + sel + '>' + p.nombre + '</option>';
-    });
-    return html;
+// ── Estado ──────────────────────────────────────────────────────────
+var filaActual  = null;
+var maxSabModal = 1;
+var contador    = 0;
+
+// ── Helpers ──────────────────────────────────────────────────────────
+function guaranies(n) {
+    return 'G. ' + parseInt(n || 0).toLocaleString('es-PY');
 }
 
-function buildTamanoOpts(selected) {
-    var html = '<option value="">Sin tamaño</option>';
-    rawTamanos.forEach(function(t) {
-        var sel = t.id == selected ? ' selected' : '';
-        html += '<option value="' + t.id + '"' + sel + '>' + t.nombre + '</option>';
-    });
-    return html;
+function actualizarMensajeVacio() {
+    var filas = document.querySelectorAll('.fila-producto-card');
+    document.getElementById('mensajeVacio').style.display =
+        filas.length === 0 ? 'block' : 'none';
 }
 
-function calcularTotales() {
-    var total = 0;
-    document.querySelectorAll('.fila-producto').forEach(function(fila) {
-        var cant   = parseInt(fila.querySelector('.cantidad').value) || 0;
-        var precio = parseInt(fila.querySelector('.precio').value)   || 0;
-        var sub    = cant * precio;
-        fila.querySelector('.subtotal').textContent =
-            'G. ' + sub.toLocaleString('es-PY');
-        total += sub;
+// ── Crear fila ───────────────────────────────────────────────────────
+function crearFila() {
+    var idx = ++contador;
+    var div = document.createElement('div');
+    div.className = 'fila-producto-card';
+    div.dataset.idx = idx;
+
+    var optsProducto = '<option value="">-- Seleccioná --</option>';
+    Object.keys(PRODUCTOS).forEach(function(pid) {
+        optsProducto +=
+            '<option value="' + pid + '">' +
+            PRODUCTOS[pid].nombre + '</option>';
     });
-    document.getElementById('totalPedido').textContent =
-        'G. ' + total.toLocaleString('es-PY');
+
+    div.innerHTML = `
+        <div class="d-flex align-items-center mb-3">
+            <span class="numero-fila">${idx}</span>
+            <strong class="text-muted small">Producto ${idx}</strong>
+            <button type="button"
+                    class="btn btn-link text-danger btn-del ms-auto p-0"
+                    title="Quitar producto">
+                <i class="bi bi-trash"></i> Quitar
+            </button>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label small fw-bold">Producto</label>
+                <select name="producto_id[]"
+                        class="form-select sel-producto" required>
+                    ${optsProducto}
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label small fw-bold">
+                    Tamaño / Presentación
+                </label>
+                <select name="tamano_id[]"
+                        class="form-select sel-tamano" disabled>
+                    <option value="">Seleccioná el producto primero</option>
+                </select>
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label small fw-bold">Cantidad</label>
+                <div class="input-group">
+                    <button type="button"
+                            class="btn btn-outline-secondary btn-menos">
+                        −
+                    </button>
+                    <input type="number" name="cantidad[]"
+                           class="form-control text-center cantidad"
+                           min="1" value="1" required>
+                    <button type="button"
+                            class="btn btn-outline-secondary btn-mas">
+                        +
+                    </button>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-bold">Precio (Gs.)</label>
+                <input type="number" name="precio_unitario[]"
+                       class="form-control precio" min="0" value="0"
+                       readonly>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-bold">Subtotal</label>
+                <div class="subtotal-display">G. 0</div>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-bold">Observación</label>
+                <input type="text" name="obs_detalle[]"
+                       class="form-control"
+                       placeholder="Ej: Sin azúcar">
+            </div>
+
+            <!-- Sabores -->
+            <div class="col-12 seccion-sabores" style="display:none;">
+                <div class="p-3 rounded"
+                     style="background:#f9f7ff; border:1px dashed #c6b7f5;">
+                    <div class="d-flex align-items-center gap-2
+                                flex-wrap">
+                        <i class="bi bi-palette2"
+                           style="color:#9b87f5;"></i>
+                        <span class="fw-bold small">Sabores:</span>
+                        <button type="button"
+                                class="btn btn-sm btn-outline-primary
+                                       btn-elegir-sabores">
+                            <i class="bi bi-plus-circle"></i>
+                            Elegir sabores
+                        </button>
+                        <div class="chips-sabores d-flex flex-wrap gap-1">
+                            <span class="text-muted small fst-italic">
+                                Ninguno elegido
+                            </span>
+                        </div>
+                    </div>
+                    <input type="hidden"
+                           name="sabores_producto_${idx - 1}"
+                           class="hidden-sabores" value="">
+                </div>
+            </div>
+        </div>`;
+
+    bindFila(div);
+    return div;
 }
 
-function actualizarPrecio(fila) {
-    var pid  = fila.querySelector('.sel-producto').value;
-    var tid  = fila.querySelector('.sel-tamano').value;
-    var key  = pid + '_' + tid;
-    var inp  = fila.querySelector('.precio');
-    if (preciosData[key] !== undefined) {
-        inp.value = preciosData[key];
-    } else if (productosData[pid]) {
-        inp.value = productosData[pid];
-    } else {
-        inp.value = 0;
+function bindFila(div) {
+    var selProd  = div.querySelector('.sel-producto');
+    var selTam   = div.querySelector('.sel-tamano');
+    var inpCant  = div.querySelector('.cantidad');
+    var inpPrec  = div.querySelector('.precio');
+    var secSab   = div.querySelector('.seccion-sabores');
+    var btnSab   = div.querySelector('.btn-elegir-sabores');
+    var chipsDiv = div.querySelector('.chips-sabores');
+    var hidSab   = div.querySelector('.hidden-sabores');
+    var btnMenos = div.querySelector('.btn-menos');
+    var btnMas   = div.querySelector('.btn-mas');
+    var btnDel   = div.querySelector('.btn-del');
+    var subDiv   = div.querySelector('.subtotal-display');
+
+    function recalcular() {
+        var sub = (parseInt(inpCant.value) || 0) *
+                  (parseInt(inpPrec.value) || 0);
+        subDiv.textContent = guaranies(sub);
+        calcularTotal();
     }
-    calcularTotales();
-}
 
-function crearFila(datos) {
-    datos = datos || {};
-    var tr = document.createElement('tr');
-    tr.className = 'fila-producto';
-    tr.innerHTML =
-        '<td><select name="producto_id[]" class="form-select form-select-sm sel-producto" required>' +
-            buildProductoOpts(datos.producto_id || '') +
-        '</select></td>' +
-        '<td><select name="tamano_id[]" class="form-select form-select-sm sel-tamano">' +
-            buildTamanoOpts(datos.tamano_id || '') +
-        '</select></td>' +
-        '<td><input type="number" name="cantidad[]" ' +
-            'class="form-control form-control-sm cantidad" ' +
-            'min="1" value="' + (datos.cantidad || 1) + '" required></td>' +
-        '<td><input type="number" name="precio_unitario[]" ' +
-            'class="form-control form-control-sm precio" ' +
-            'min="0" value="' + (datos.precio || 0) + '" required></td>' +
-        '<td><span class="subtotal fw-bold text-primary">G. 0</span></td>' +
-        '<td><input type="text" name="obs_detalle[]" ' +
-            'class="form-control form-control-sm" ' +
-            'placeholder="Obs..." value="' + (datos.obs || '') + '"></td>' +
-        '<td><button type="button" class="btn btn-sm btn-danger btn-del">' +
-            '<i class="bi bi-trash"></i></button></td>';
-    return tr;
-}
+    selProd.addEventListener('change', function() {
+        var pid  = this.value;
+        var info = PRODUCTOS[pid];
 
-function bindFila(fila) {
-    fila.querySelector('.sel-producto').addEventListener('change', function() {
-        actualizarPrecio(fila);
+        selTam.innerHTML =
+            '<option value="">Sin tamaño específico</option>';
+        secSab.style.display = 'none';
+        inpPrec.value = 0;
+
+        if (!pid || !info) {
+            selTam.disabled = true;
+            recalcular();
+            return;
+        }
+
+        selTam.disabled = false;
+
+        if (info.tamanos && info.tamanos.length > 0) {
+            info.tamanos.forEach(function(t) {
+                selTam.innerHTML +=
+                    '<option value="' + t.id +
+                    '" data-precio="' + t.precio +
+                    '" data-max="' + t.maxSabores + '">' +
+                    t.nombre + ' — ' + guaranies(t.precio) +
+                    '</option>';
+            });
+            selTam.selectedIndex = 1;
+        }
+
+        actualizarPrecioYSabores();
+        recalcular();
     });
-    fila.querySelector('.sel-tamano').addEventListener('change', function() {
-        actualizarPrecio(fila);
+
+    selTam.addEventListener('change', function() {
+        actualizarPrecioYSabores();
+        recalcular();
     });
-    fila.querySelector('.cantidad').addEventListener('input', calcularTotales);
-    fila.querySelector('.precio').addEventListener('input', calcularTotales);
-    fila.querySelector('.btn-del').addEventListener('click', function() {
-        if (document.querySelectorAll('.fila-producto').length > 1) {
-            fila.remove();
-            calcularTotales();
+
+    function actualizarPrecioYSabores() {
+        var pid = selProd.value;
+        var opt = selTam.options[selTam.selectedIndex];
+
+        if (opt && opt.dataset.precio) {
+            inpPrec.value = opt.dataset.precio;
+        } else {
+            inpPrec.value = 0;
+        }
+
+        if (pid && PRODUCTOS[pid]) {
+            var catId   = String(PRODUCTOS[pid].categoria);
+            var sabores = SABORES[catId] || [];
+            secSab.style.display = sabores.length > 0 ? 'block' : 'none';
+        }
+    }
+
+    inpCant.addEventListener('input', recalcular);
+    inpPrec.addEventListener('input', recalcular);
+
+    btnMenos.addEventListener('click', function() {
+        var v = parseInt(inpCant.value) || 1;
+        if (v > 1) { inpCant.value = v - 1; recalcular(); }
+    });
+    btnMas.addEventListener('click', function() {
+        inpCant.value = (parseInt(inpCant.value) || 1) + 1;
+        recalcular();
+    });
+
+    btnSab.addEventListener('click', function() {
+        var pid    = selProd.value;
+        if (!pid) return;
+        var opt    = selTam.options[selTam.selectedIndex];
+        var maxSab = parseInt(opt && opt.dataset.max ? opt.dataset.max : 1) || 1;
+        var catId  = String(PRODUCTOS[pid].categoria);
+        abrirModalSabores(div, pid, catId, maxSab);
+    });
+
+    btnDel.addEventListener('click', function() {
+        var filas = document.querySelectorAll('.fila-producto-card');
+        if (filas.length > 1) {
+            div.remove();
+            calcularTotal();
+            actualizarMensajeVacio();
         }
     });
 }
 
-document.getElementById('btnAgregarFila').addEventListener('click', function() {
-    var fila = crearFila();
-    document.getElementById('filasProductos').appendChild(fila);
-    bindFila(fila);
-    calcularTotales();
-});
+// ── Total global ─────────────────────────────────────────────────────
+function calcularTotal() {
+    var total = 0;
+    document.querySelectorAll('.fila-producto-card').forEach(function(div) {
+        var cant  = parseInt(div.querySelector('.cantidad').value) || 0;
+        var prec  = parseInt(div.querySelector('.precio').value) || 0;
+        total += cant * prec;
+    });
+    document.getElementById('totalPedido').textContent = guaranies(total);
+}
 
-// Agregar primera fila al cargar
-document.addEventListener('DOMContentLoaded', function() {
-    document.getElementById('btnAgregarFila').click();
-});
+// ── Modal sabores ────────────────────────────────────────────────────
+function abrirModalSabores(div, pid, catId, maxSab) {
+    filaActual  = div;
+    maxSabModal = maxSab;
+
+    var nombre  = PRODUCTOS[pid] ? PRODUCTOS[pid].nombre : '';
+    document.getElementById('modalNombreProductoSabor').textContent =
+        nombre;
+    document.getElementById('modalMaxSabores').textContent = maxSab;
+    document.getElementById('badgeContadorSabores').textContent =
+        '0 elegidos';
+    document.getElementById('progressSaboresModal').style.width = '0%';
+    document.getElementById('alertaMaxSaboresModal').style.display = 'none';
+
+    var sabores  = SABORES[catId] || [];
+    var hidSab   = div.querySelector('.hidden-sabores');
+    var elegidos = hidSab.value
+        ? hidSab.value.split(',').map(Number)
+        : [];
+
+    var grid = document.getElementById('gridSaboresModal');
+    grid.innerHTML = '';
+
+    if (sabores.length === 0) {
+        grid.innerHTML =
+            '<div class="col-12 text-center text-muted py-4">' +
+            '<i class="bi bi-cup-straw" style="font-size:2rem;' +
+            ' color:#c6b7f5;"></i><p class="mt-2">Sin sabores ' +
+            'disponibles para esta categoría.</p></div>';
+    } else {
+        sabores.forEach(function(s) {
+            var sel  = elegidos.indexOf(s.id) !== -1;
+            var agot = !s.disponible;
+            var col  = document.createElement('div');
+            col.className = 'col-4 col-sm-3 col-md-2';
+            col.innerHTML = `
+                <div class="sabor-mini-card text-center
+                    ${sel ? 'selected' : ''}
+                    ${agot ? 'agotado' : ''}"
+                     data-id="${s.id}"
+                     data-nombre="${s.nombre}">
+                    ${s.imagen
+                        ? `<img src="${s.imagen}" alt="${s.nombre}"
+                                style="width:100%; height:70px;
+                                       object-fit:cover;
+                                       ${agot ? 'filter:grayscale(80%)' : ''}">`
+                        : `<div style="height:70px; background:#f0ecff;
+                                       display:flex; align-items:center;
+                                       justify-content:center;">
+                               <i class="bi bi-cup-straw"
+                                  style="font-size:1.8rem;
+                                         color:#9b87f5;"></i>
+                           </div>`}
+                    <div class="p-1">
+                        <small class="fw-bold d-block"
+                               style="font-size:10px; line-height:1.2;">
+                            ${s.nombre}
+                        </small>
+                        ${agot
+                            ? '<span class="badge bg-secondary" style="font-size:8px;">Sin stock</span>'
+                            : sel
+                                ? '<i class="bi bi-check-circle-fill text-primary" style="font-size:11px;"></i>'
+                                : ''}
+                    </div>
+                </div>`;
+
+            if (!agot) {
+                col.querySelector('.sabor-mini-card')
+                   .addEventListener('click', function() {
+                        toggleSabor(this);
+                    });
+            }
+            grid.appendChild(col);
+        });
+    }
+
+    // Actualizar contador inicial
+    var ini = document.querySelectorAll(
+        '#gridSaboresModal .sabor-mini-card.selected'
+    ).length;
+    actualizarContadorModal(ini);
+
+    bootstrap.Modal.getOrCreateInstance(
+        document.getElementById('modalSabores')
+    ).show();
+}
+
+function actualizarContadorModal(n) {
+    document.getElementById('badgeContadorSabores').textContent =
+        n + ' elegido' + (n !== 1 ? 's' : '');
+    var pct = maxSabModal > 0
+        ? Math.min((n / maxSabModal) * 100, 100)
+        : 0;
+    document.getElementById('progressSaboresModal').style.width = pct + '%';
+    document.getElementById('badgeContadorSabores').className =
+        'badge ' + (n >= maxSabModal ? 'bg-success' : 'bg-secondary');
+}
+
+function toggleSabor(el) {
+    var elegidos = document.querySelectorAll(
+        '#gridSaboresModal .sabor-mini-card.selected'
+    );
+    if (el.classList.contains('selected')) {
+        el.classList.remove('selected');
+        var ic = el.querySelector('i.bi-check-circle-fill');
+        if (ic) ic.remove();
+        actualizarContadorModal(elegidos.length - 1);
+    } else {
+        if (elegidos.length >= maxSabModal) {
+            var al = document.getElementById('alertaMaxSaboresModal');
+            al.style.display = 'block';
+            setTimeout(function() { al.style.display = 'none'; }, 2000);
+            return;
+        }
+        el.classList.add('selected');
+        var ic2 = document.createElement('i');
+        ic2.className = 'bi bi-check-circle-fill text-primary';
+        ic2.style.fontSize = '11px';
+        var p = el.querySelector('div.p-1');
+        if (p) p.appendChild(ic2);
+        actualizarContadorModal(elegidos.length + 1);
+    }
+}
+
+document.getElementById('btnConfirmarSabores')
+    .addEventListener('click', function() {
+        if (!filaActual) return;
+        var elegidos = document.querySelectorAll(
+            '#gridSaboresModal .sabor-mini-card.selected'
+        );
+        var ids = [], nombres = [];
+        elegidos.forEach(function(el) {
+            ids.push(el.dataset.id);
+            nombres.push(el.dataset.nombre);
+        });
+
+        var hidSab   = filaActual.querySelector('.hidden-sabores');
+        var chipsDiv = filaActual.querySelector('.chips-sabores');
+        var btnSab   = filaActual.querySelector('.btn-elegir-sabores');
+
+        hidSab.value = ids.join(',');
+
+        chipsDiv.innerHTML = nombres.length > 0
+            ? nombres.map(function(n) {
+                return '<span class="sabor-chip">🍦 ' + n + '</span>';
+              }).join('')
+            : '<span class="text-muted small fst-italic">Ninguno elegido</span>';
+
+        btnSab.innerHTML = nombres.length > 0
+            ? '<i class="bi bi-pencil"></i> Cambiar sabores'
+            : '<i class="bi bi-plus-circle"></i> Elegir sabores';
+
+        bootstrap.Modal.getOrCreateInstance(
+            document.getElementById('modalSabores')
+        ).hide();
+    });
+
+// ── Init ─────────────────────────────────────────────────────────────
+document.getElementById('btnAgregarFila')
+    .addEventListener('click', function() {
+        var fila = crearFila();
+        document.getElementById('listaProductos').appendChild(fila);
+        actualizarMensajeVacio();
+        calcularTotal();
+    });
 </script>
 {% endblock %}
