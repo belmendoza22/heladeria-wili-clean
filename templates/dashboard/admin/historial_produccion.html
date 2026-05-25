@@ -1,29 +1,261 @@
 {% extends 'base.html' %}
+{% load filtros %}
 {% block title %}Historial de Producción{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1>Historial de Producción</h1>
-        <a href="{% url 'registrar_produccion' %}"
-           class="btn btn-success btn-sm">
-            <i class="bi bi-plus-circle"></i> Nueva producción
-        </a>
+        <div class="d-flex gap-2">
+            <a href="{% url 'registrar_produccion' %}"
+               class="btn btn-success btn-sm">
+                <i class="bi bi-plus-circle"></i> Nueva producción
+            </a>
+            <a href="{% url 'admin_dashboard' %}"
+               class="btn btn-secondary btn-sm">
+                <i class="bi bi-arrow-left"></i> Volver al panel
+            </a>
+        </div>
     </div>
 
-    <div class="alert alert-info">
-        <i class="bi bi-info-circle"></i>
-        El historial muestra el stock actual de productos terminados
-        y la última operación registrada en cada insumo.
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert
+                {% if message.tags == 'success' %}alert-success
+                {% else %}alert-danger{% endif %}
+                alert-dismissible fade show">
+                {{ message }}
+                <button type="button" class="btn-close"
+                        data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="bi bi-funnel"></i> Filtros
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Producto</label>
+                    <select name="producto_id" class="form-select">
+                        <option value="">Todos</option>
+                        {% for p in productos %}
+                        <option value="{{ p.id }}"
+                            {% if producto_id == p.id|stringformat:"s" %}
+                                selected{% endif %}>
+                            {{ p.nombre }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Estado</label>
+                    <select name="estado" class="form-select">
+                        <option value="">Todos</option>
+                        <option value="en_proceso"
+                            {% if estado_filtro == 'en_proceso' %}selected{% endif %}>
+                            En proceso
+                        </option>
+                        <option value="completada"
+                            {% if estado_filtro == 'completada' %}selected{% endif %}>
+                            Completada
+                        </option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Desde</label>
+                    <input type="date" name="fecha_inicio"
+                           class="form-control"
+                           value="{{ fecha_inicio|default:'' }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Hasta</label>
+                    <input type="date" name="fecha_fin"
+                           class="form-control"
+                           value="{{ fecha_fin|default:'' }}">
+                </div>
+                <div class="col-md-3 d-flex align-items-end gap-2">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-search"></i> Filtrar
+                    </button>
+                    <a href="{% url 'historial_produccion' %}"
+                       class="btn btn-outline-secondary">
+                        <i class="bi bi-x"></i>
+                    </a>
+                </div>
+            </form>
+        </div>
     </div>
 
+    <!-- Totales del período filtrado -->
+    {% if logs %}
+    <div class="row mb-4 g-3">
+        <div class="col-md-4">
+            <div class="card text-center border-primary h-100">
+                <div class="card-body">
+                    <h6 class="text-muted">Registros</h6>
+                    <h3 class="text-primary">{{ logs|length }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-center border-warning h-100">
+                <div class="card-body">
+                    <h6 class="text-muted">Total planificado</h6>
+                    <h3 class="text-warning">{{ total_planificado }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-center border-success h-100">
+                <div class="card-body">
+                    <h6 class="text-muted">Total real producido</h6>
+                    <h3 class="text-success">{{ total_real }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Tabla de registros -->
+    <h5 class="mb-3">
+        <i class="bi bi-clock-history"></i> Registros
+        {% if logs %}
+            <span class="badge bg-secondary">{{ logs|length }}</span>
+        {% endif %}
+    </h5>
+    <div class="table-responsive mb-5">
+        <table class="table table-bordered table-hover align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th>#</th>
+                    <th>Fecha inicio</th>
+                    <th>Producto</th>
+                    <th>Planificado</th>
+                    <th>Real</th>
+                    <th>Diferencia</th>
+                    <th>Responsable</th>
+                    <th>Estado</th>
+                    <th>Obs.</th>
+                    <th>Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr class="{% if log.estado == 'en_proceso' %}table-warning{% endif %}">
+                    <td class="text-muted">{{ log.id }}</td>
+                    <td>{{ log.fecha|date:"d/m/Y H:i" }}</td>
+                    <td>
+                        <strong>{{ log.producto.nombre }}</strong>
+                        <br>
+                        <small class="text-muted">
+                            {{ log.producto.categoria.nombre }}
+                        </small>
+                    </td>
+                    <td>
+                        <span class="badge bg-secondary">
+                            {{ log.cantidad_planificada }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if log.cantidad_real %}
+                            <span class="badge bg-success">
+                                {{ log.cantidad_real }}
+                            </span>
+                            <br>
+                            <small class="text-muted">
+                                {{ log.fecha_completada|date:"d/m H:i" }}
+                            </small>
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if log.cantidad_real %}
+                            {% with diff=log.cantidad_real|add:"-0" %}
+                            <span class="fw-bold
+                                {% if log.cantidad_real >= log.cantidad_planificada %}text-success
+                                {% else %}text-danger{% endif %}">
+                                {% if log.cantidad_real >= log.cantidad_planificada %}+{% endif %}
+                                {{ log.cantidad_real }}
+                            </span>
+                            {% endwith %}
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="small">
+                        {{ log.responsable.get_full_name|default:log.responsable.username }}
+                    </td>
+                    <td>
+                        {% if log.estado == 'en_proceso' %}
+                            <span class="badge bg-warning text-dark">
+                                <i class="bi bi-clock"></i> En proceso
+                            </span>
+                        {% else %}
+                            <span class="badge bg-success">
+                                <i class="bi bi-check-circle"></i> Completada
+                            </span>
+                        {% endif %}
+                    </td>
+                    <td class="text-muted small">
+                        {{ log.observaciones|default:"—" }}
+                    </td>
+                    <td>
+                        {% if log.estado == 'en_proceso' %}
+                        <form method="post"
+                              action="{% url 'historial_produccion' %}"
+                              class="d-flex gap-1 align-items-center">
+                            {% csrf_token %}
+                            <input type="hidden" name="log_id"
+                                   value="{{ log.id }}">
+                            <input type="number" name="cantidad_real"
+                                   class="form-control form-control-sm"
+                                   placeholder="Cant. real"
+                                   min="0.001" step="0.001" required
+                                   style="width:90px;">
+                            <button type="submit"
+                                    class="btn btn-sm btn-success"
+                                    title="Confirmar cantidad real y sumar al stock"
+                                    onclick="return confirm(
+                                        '¿Confirmar producción real?')">
+                                <i class="bi bi-check-lg"></i>
+                            </button>
+                        </form>
+                        {% else %}
+                            <span class="text-muted small">
+                                <i class="bi bi-check-all"></i> Completada
+                            </span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="10"
+                        class="text-center text-muted py-4">
+                        <i class="bi bi-inbox"></i>
+                        No hay registros con los filtros aplicados.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Stock actual de productos -->
+    <h5 class="mb-3">
+        <i class="bi bi-box-seam"></i> Stock actual de productos terminados
+    </h5>
     <div class="table-responsive">
         <table class="table table-bordered table-hover align-middle">
             <thead class="table-dark">
                 <tr>
                     <th>Producto</th>
                     <th>Categoría</th>
-                    <th>Stock terminado</th>
+                    <th>Stock disponible</th>
                     <th>Estado</th>
                 </tr>
             </thead>
@@ -33,19 +265,17 @@
                     <td><strong>{{ producto.nombre }}</strong></td>
                     <td>{{ producto.categoria.nombre }}</td>
                     <td>
-                        <span class="badge
+                        <span class="badge fs-6
                             {% if producto.stock <= 0 %}bg-danger
                             {% elif producto.stock <= 5 %}bg-warning text-dark
-                            {% else %}bg-success{% endif %}
-                            fs-6">
-                            {{ producto.stock }}
+                            {% else %}bg-success{% endif %}">
+                            {{ producto.stock }} u.
                         </span>
                     </td>
                     <td>
                         {% if producto.stock <= 0 %}
                             <span class="text-danger">
-                                <i class="bi bi-x-circle-fill"></i>
-                                Sin stock
+                                <i class="bi bi-x-circle-fill"></i> Sin stock
                             </span>
                         {% elif producto.stock <= 5 %}
                             <span class="text-warning">
@@ -62,7 +292,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="4" class="text-center text-muted">
+                    <td colspan="4" class="text-center text-muted py-3">
                         No hay productos registrados.
                     </td>
                 </tr>
@@ -70,9 +300,5 @@
             </tbody>
         </table>
     </div>
-
-    <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary mt-3">
-        <i class="bi bi-arrow-left"></i> Volver al panel
-    </a>
 </div>
 {% endblock %}

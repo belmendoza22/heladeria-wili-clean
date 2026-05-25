@@ -1,11 +1,12 @@
 {% load static %}
+{% load filtros %}
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <title>Ticket #{{ pedido.id }} — Heladería Wili</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * { margin:0; padding:0; box-sizing:border-box; }
 
         body {
             font-family: 'Courier New', monospace;
@@ -13,6 +14,8 @@
             display: flex;
             justify-content: center;
             padding: 20px;
+            flex-direction: column;
+            align-items: center;
         }
 
         .ticket {
@@ -30,22 +33,15 @@
             margin-bottom: 12px;
         }
 
-        .logo {
-            max-width: 120px;
-            margin-bottom: 8px;
-        }
+        .logo { max-width: 110px; margin-bottom: 6px; }
 
         .negocio-nombre {
-            font-size: 18px;
+            font-size: 17px;
             font-weight: bold;
             color: #9b87f5;
         }
 
-        .negocio-info {
-            font-size: 11px;
-            color: #666;
-            margin-top: 4px;
-        }
+        .negocio-info { font-size: 11px; color: #666; margin-top: 3px; }
 
         .ticket-num {
             background: #9b87f5;
@@ -56,6 +52,7 @@
             font-size: 14px;
             font-weight: bold;
             margin: 10px 0;
+            letter-spacing: 1px;
         }
 
         .info-row {
@@ -65,6 +62,8 @@
             color: #555;
             margin-bottom: 3px;
         }
+
+        .info-row span:last-child { font-weight: bold; color: #333; }
 
         .divider {
             border: none;
@@ -79,28 +78,33 @@
             font-weight: bold;
             color: #333;
             margin-bottom: 6px;
+            text-transform: uppercase;
         }
 
-        .producto-row {
-            margin-bottom: 8px;
-            font-size: 12px;
-        }
+        .producto-row { margin-bottom: 8px; font-size: 12px; }
 
-        .producto-nombre {
-            font-weight: bold;
-            color: #333;
-        }
+        .producto-nombre { font-weight: bold; color: #333; }
 
-        .producto-tamano {
-            font-size: 11px;
-            color: #666;
-        }
+        .producto-detalle { font-size: 10px; color: #777; margin-top: 1px; }
 
         .producto-precios {
             display: flex;
             justify-content: space-between;
             font-size: 11px;
             color: #555;
+            margin-top: 2px;
+        }
+
+        .sabores-tag {
+            font-size: 10px;
+            color: #9b87f5;
+            margin-top: 2px;
+        }
+
+        .addons-tag {
+            font-size: 10px;
+            color: #f0a500;
+            margin-top: 1px;
         }
 
         .total-section {
@@ -112,29 +116,42 @@
         .total-row {
             display: flex;
             justify-content: space-between;
-            font-size: 14px;
+            font-size: 15px;
             font-weight: bold;
             color: #333;
         }
 
-        .total-amount {
-            color: #9b87f5;
-            font-size: 18px;
-        }
+        .total-amount { color: #9b87f5; font-size: 20px; }
 
         .pago-section {
             background: #f9f7ff;
             border-radius: 4px;
             padding: 8px;
             margin-top: 10px;
-            text-align: center;
-            font-size: 12px;
+            font-size: 11px;
+        }
+
+        .pago-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
         .pago-metodo {
             font-weight: bold;
             color: #7b68ee;
-            font-size: 14px;
+            font-size: 13px;
+        }
+
+        .cajero-section {
+            background: #f8f9fa;
+            border-radius: 4px;
+            padding: 6px 8px;
+            margin-top: 8px;
+            font-size: 10px;
+            color: #666;
+            display: flex;
+            justify-content: space-between;
         }
 
         .footer {
@@ -153,12 +170,10 @@
             margin-bottom: 4px;
         }
 
-        /* Botones — se ocultan al imprimir */
         .acciones {
             display: flex;
             gap: 8px;
             margin-top: 16px;
-            justify-content: center;
         }
 
         .btn-imprimir {
@@ -185,18 +200,9 @@
         }
 
         @media print {
-            body {
-                background: white;
-                padding: 0;
-            }
-            .ticket {
-                box-shadow: none;
-                border-radius: 0;
-                width: 100%;
-            }
-            .acciones {
-                display: none !important;
-            }
+            body { background: white; padding: 0; }
+            .ticket { box-shadow: none; border-radius: 0; width: 100%; }
+            .acciones { display: none !important; }
         }
     </style>
 </head>
@@ -208,7 +214,7 @@
         <img src="{% static 'Logo_Wili.png' %}" class="logo" alt="Wili">
         <div class="negocio-nombre">Heladería Wili</div>
         <div class="negocio-info">San José de los Arroyos, Paraguay</div>
-        <div class="negocio-info">(0984) 236-667</div>
+        <div class="negocio-info">(0994) 236-668</div>
     </div>
 
     <!-- Número de ticket -->
@@ -223,20 +229,25 @@
     </div>
     <div class="info-row">
         <span>Hora:</span>
-        <span>{{ pedido.fecha_pedido|date:"H:i" }}</span>
+        <span>{{ pedido.fecha_pedido|date:"H:i" }} hs</span>
     </div>
     <div class="info-row">
         <span>Cliente:</span>
         <span>
             {% if pedido.cliente %}
-                {{ pedido.cliente.get_full_name|default:pedido.cliente.username }}
+                {% if pedido.cliente.first_name %}
+                    {{ pedido.cliente.first_name }}
+                    {{ pedido.cliente.last_name }}
+                {% else %}
+                    {{ pedido.cliente.username }}
+                {% endif %}
             {% else %}
                 Consumidor final
             {% endif %}
         </span>
     </div>
     <div class="info-row">
-        <span>Tipo:</span>
+        <span>Modalidad:</span>
         <span>{{ pedido.get_tipo_pedido_display }}</span>
     </div>
 
@@ -252,14 +263,34 @@
     <div class="producto-row">
         <div class="producto-nombre">{{ detalle.producto.nombre }}</div>
         {% if detalle.tamano %}
-            <div class="producto-tamano">{{ detalle.tamano.nombre }}</div>
+            <div class="producto-detalle">{{ detalle.tamano.nombre }}</div>
         {% endif %}
-        <div class="producto-precios">
-            <span>{{ detalle.cantidad }} x G. {{ detalle.precio_unitario }}</span>
-            <span>G. {{ detalle.subtotal }}</span>
+
+        <!-- Sabores elegidos -->
+        {% with sabores=detalle.sabores.all %}
+        {% if sabores %}
+        <div class="sabores-tag">
+            🍦 {% for s in sabores %}{{ s.nombre }}{% if not forloop.last %}, {% endif %}{% endfor %}
         </div>
+        {% endif %}
+        {% endwith %}
+
+        <!-- Agregados elegidos -->
+        {% with addons=detalle.addons.all %}
+        {% if addons %}
+        <div class="addons-tag">
+            ⭐ {% for a in addons %}{{ a.nombre }}{% if not forloop.last %}, {% endif %}{% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <div class="producto-precios">
+            <span>{{ detalle.cantidad }} x {{ detalle.precio_unitario|guaranies }}</span>
+            <span>{{ detalle.subtotal|guaranies }}</span>
+        </div>
+
         {% if detalle.observaciones %}
-            <div class="producto-tamano">* {{ detalle.observaciones }}</div>
+            <div class="producto-detalle">* {{ detalle.observaciones }}</div>
         {% endif %}
     </div>
     {% endfor %}
@@ -268,28 +299,45 @@
     <div class="total-section">
         <div class="total-row">
             <span>TOTAL</span>
-            <span class="total-amount">G. {{ pedido.total }}</span>
+            <span class="total-amount">{{ pedido.total|guaranies }}</span>
         </div>
     </div>
 
     <!-- Método de pago -->
     <div class="pago-section">
-        <div style="font-size:11px; color:#666;">Método de pago</div>
-        <div class="pago-metodo">
-            {% if pedido.metodo_pago == 'efectivo' %}
-                💵 Efectivo
-            {% else %}
-                📱 Transferencia bancaria
-            {% endif %}
+        <div class="pago-row">
+            <span style="color:#666;">Método de pago</span>
+            <span class="pago-metodo">
+                {% if pedido.metodo_pago == 'efectivo' %}
+                    Efectivo
+                {% else %}
+                    Transferencia
+                {% endif %}
+            </span>
         </div>
+    </div>
+
+    <!-- Cajero y hora de venta -->
+    <div class="cajero-section">
+        <span>
+            Cajero:
+            <strong>
+                {% if pedido.empleado_cajero %}
+                    {{ pedido.empleado_cajero.get_full_name|default:pedido.empleado_cajero.username }}
+                {% else %}
+                    Sistema online
+                {% endif %}
+            </strong>
+        </span>
+        <span>{{ pedido.fecha_actualizacion|date:"H:i" }} hs</span>
     </div>
 
     <!-- Footer -->
     <div class="footer">
         <div class="gracias">¡Gracias por tu compra!</div>
         <div>Volvé pronto 🍦</div>
-        <div style="margin-top:6px; font-size:10px;">
-            Este comprobante es válido como recibo de pago.
+        <div style="margin-top:6px; font-size:10px; color:#aaa;">
+            Comprobante válido como recibo de pago.
         </div>
     </div>
 </div>

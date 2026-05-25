@@ -1,10 +1,16 @@
 {% extends 'base.html' %}
+{% load filtros %}
 {% block title %}Vista de Despacho{% endblock %}
 
 {% block content %}
 <div class="container-fluid mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1>Vista de Despacho</h1>
+        <div>
+            <h1 class="mb-0">Vista de Despacho</h1>
+            <small class="text-muted">
+                Se actualiza automáticamente cada 30 segundos
+            </small>
+        </div>
         <div class="d-flex gap-2 align-items-center">
             <span class="badge bg-warning text-dark fs-6">
                 {{ pedidos|length }} pedido(s) activo(s)
@@ -13,7 +19,8 @@
                     onclick="location.reload()">
                 <i class="bi bi-arrow-clockwise"></i> Actualizar
             </button>
-            <a href="{% url 'empleado_home' %}" class="btn btn-secondary btn-sm">
+            <a href="{% url 'empleado_home' %}"
+               class="btn btn-secondary btn-sm">
                 <i class="bi bi-arrow-left"></i> Volver
             </a>
         </div>
@@ -21,118 +28,217 @@
 
     {% if messages %}
         {% for message in messages %}
-            <div class="alert alert-success alert-dismissible fade show">
+            <div class="alert
+                {% if message.tags == 'success' %}alert-success
+                {% else %}alert-danger{% endif %}
+                alert-dismissible fade show">
                 {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                <button type="button" class="btn-close"
+                        data-bs-dismiss="alert"></button>
             </div>
         {% endfor %}
     {% endif %}
 
     {% if pedidos %}
-    <div class="row">
+    <div class="row g-3">
         {% for pedido in pedidos %}
-        <div class="col-md-4 mb-4">
-            <div class="card h-100 shadow
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="card h-100
                 {% if pedido.estado == 'en_preparacion' %}
-                    border-warning
+                    border-warning border-3
                 {% else %}
-                    border-primary
-                {% endif %}">
+                    border-primary border-2
+                {% endif %}"
+                 style="border-radius:12px; overflow:hidden;">
 
-                <!-- Header de la tarjeta -->
-                <div class="card-header d-flex justify-content-between align-items-center
+                <!-- Header -->
+                <div class="card-header d-flex justify-content-between
+                            align-items-center py-2
                     {% if pedido.estado == 'en_preparacion' %}
                         bg-warning text-dark
                     {% else %}
-                        bg-primary text-white
-                    {% endif %}">
-                    <h5 class="mb-0">Pedido #{{ pedido.id }}</h5>
+                        text-white{% endif %}"
+                    {% if pedido.estado != 'en_preparacion' %}
+                        style="background-color:#9b87f5;"
+                    {% endif %}>
+                    <div>
+                        <h6 class="mb-0 fw-bold">
+                            Pedido #{{ pedido.id }}
+                        </h6>
+                        <small class="opacity-75">
+                            {{ pedido.fecha_pedido|date:"H:i" }} hs
+                            — {{ pedido.get_tipo_pedido_display }}
+                        </small>
+                    </div>
                     <span class="badge bg-white
                         {% if pedido.estado == 'en_preparacion' %}
                             text-warning
                         {% else %}
-                            text-primary
-                        {% endif %}">
+                            text-primary{% endif %}
+                        fw-bold">
                         {{ pedido.get_estado_display }}
                     </span>
                 </div>
 
-                <div class="card-body">
-                    <!-- Info del pedido -->
-                    <div class="mb-3">
-                        <p class="mb-1">
-                            <i class="bi bi-person"></i>
-                            <strong>
-                                {{ pedido.cliente.get_full_name|default:pedido.cliente.username|default:"Sin cliente" }}
+                <div class="card-body p-3">
+
+                    <!-- Cliente -->
+                    <div class="d-flex align-items-center gap-2 mb-3">
+                        <div class="rounded-circle d-flex align-items-center
+                                    justify-content-center"
+                             style="width:32px; height:32px;
+                                    background:#f0ecff;
+                                    flex-shrink:0;">
+                            <i class="bi bi-person"
+                               style="color:#9b87f5;"></i>
+                        </div>
+                        <div>
+                            <strong class="small">
+                                {% if pedido.cliente %}
+                                    {{ pedido.cliente.get_full_name|default:pedido.cliente.username }}
+                                {% else %}
+                                    Sin cliente
+                                {% endif %}
                             </strong>
-                        </p>
-                        <p class="mb-1 text-muted small">
-                            <i class="bi bi-clock"></i>
-                            {{ pedido.fecha_pedido|date:"H:i" }} hs —
-                            {{ pedido.get_tipo_pedido_display }}
-                        </p>
-                        {% if pedido.observaciones %}
-                            <div class="alert alert-info py-1 px-2 mb-0 small">
-                                <i class="bi bi-chat-left-text"></i>
-                                {{ pedido.observaciones }}
-                            </div>
-                        {% endif %}
+                        </div>
                     </div>
 
-                    <!-- Productos -->
-                    <h6 class="border-bottom pb-2">Productos</h6>
-                    <ul class="list-unstyled">
-                        {% for detalle in pedido.detalles.all %}
-                        <li class="d-flex justify-content-between mb-2">
-                            <div>
-                                <span class="badge bg-secondary me-1">
-                                    x{{ detalle.cantidad }}
-                                </span>
-                                <strong>{{ detalle.producto.nombre }}</strong>
-                                {% if detalle.tamano %}
-                                    <small class="text-muted">
-                                        — {{ detalle.tamano.nombre }}
-                                    </small>
-                                {% endif %}
-                                {% if detalle.observaciones %}
-                                    <br>
-                                    <small class="text-info">
-                                        <i class="bi bi-chat-left-text"></i>
-                                        {{ detalle.observaciones }}
-                                    </small>
-                                {% endif %}
-                            </div>
-                            <small class="text-muted">
-                                G. {{ detalle.subtotal }}
-                            </small>
-                        </li>
-                        {% endfor %}
-                    </ul>
+                    {% if pedido.observaciones %}
+                    <div class="alert alert-info py-1 px-2 mb-3 small">
+                        <i class="bi bi-chat-left-text me-1"></i>
+                        <em>{{ pedido.observaciones }}</em>
+                    </div>
+                    {% endif %}
 
-                    <div class="border-top pt-2 d-flex justify-content-between">
-                        <strong>Total:</strong>
-                        <strong class="text-success">G. {{ pedido.total }}</strong>
+                    <!-- Productos -->
+                    <div class="border-top pt-2">
+                        {% for detalle in pedido.detalles.all %}
+                        <div class="mb-3 {% if not forloop.last %}border-bottom pb-2{% endif %}">
+
+                            <!-- Nombre y cantidad -->
+                            <div class="d-flex justify-content-between
+                                        align-items-start">
+                                <div class="flex-grow-1">
+                                    <span class="badge bg-dark me-1">
+                                        ×{{ detalle.cantidad }}
+                                    </span>
+                                    <strong class="small">
+                                        {{ detalle.producto.nombre }}
+                                    </strong>
+                                    {% if detalle.tamano %}
+                                    <br>
+                                    <small class="text-muted ms-3">
+                                        {{ detalle.tamano.nombre }}
+                                    </small>
+                                    {% endif %}
+                                </div>
+                                <small class="text-muted fw-bold">
+                                    {{ detalle.subtotal|guaranies }}
+                                </small>
+                            </div>
+
+                            <!-- Sabores -->
+                            {% with sabores=detalle.sabores.all %}
+                            {% if sabores %}
+                            <div class="mt-2 ms-2">
+                                <small class="text-muted fw-bold">
+                                    <i class="bi bi-palette2 me-1"></i>
+                                    Sabores:
+                                </small>
+                                <div class="d-flex flex-wrap gap-1 mt-1">
+                                    {% for sabor in sabores %}
+                                    <span class="badge px-2 py-1"
+                                          style="background:#f0ecff;
+                                                 color:#7b68ee;
+                                                 border:1px solid #c6b7f5;
+                                                 font-size:11px;">
+                                        🍦 {{ sabor.nombre }}
+                                        {% if sabor.subcategoria %}
+                                            <small style="opacity:.7;">
+                                                ({{ sabor.subcategoria.nombre }})
+                                            </small>
+                                        {% endif %}
+                                    </span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
+                            {% endwith %}
+
+                            <!-- Agregados -->
+                            {% with addons=detalle.addons.all %}
+                            {% if addons %}
+                            <div class="mt-2 ms-2">
+                                <small class="text-muted fw-bold">
+                                    <i class="bi bi-stars me-1"></i>
+                                    Agregados:
+                                </small>
+                                <div class="d-flex flex-wrap gap-1 mt-1">
+                                    {% for addon in addons %}
+                                    <span class="badge px-2 py-1"
+                                          style="background:#fff8e1;
+                                                 color:#e65100;
+                                                 border:1px solid #ffcc02;
+                                                 font-size:11px;">
+                                        ⭐ {{ addon.nombre }}
+                                    </span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
+                            {% endwith %}
+
+                            <!-- Obs. del detalle -->
+                            {% if detalle.observaciones %}
+                            <div class="mt-1 ms-2">
+                                <small class="text-info">
+                                    <i class="bi bi-chat-left-dots me-1"></i>
+                                    {{ detalle.observaciones }}
+                                </small>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Total -->
+                    <div class="d-flex justify-content-between
+                                border-top pt-2 mt-1">
+                        <strong class="small">Total:</strong>
+                        <strong class="text-success">
+                            {{ pedido.total|guaranies }}
+                        </strong>
                     </div>
                 </div>
 
                 <!-- Botones de acción -->
-                <div class="card-footer">
+                <div class="card-footer p-2 bg-transparent">
                     {% if pedido.estado == 'confirmado' %}
                         <form method="post"
                               action="{% url 'actualizar_estado_pedido' pedido.id %}">
                             {% csrf_token %}
-                            <input type="hidden" name="estado" value="en_preparacion">
-                            <button type="submit" class="btn btn-warning w-100">
-                                <i class="bi bi-clock"></i> Iniciar preparación
+                            <input type="hidden" name="estado"
+                                   value="en_preparacion">
+                            <input type="hidden" name="next"
+                                   value="vista_despacho">
+                            <button type="submit"
+                                    class="btn btn-warning w-100 fw-bold">
+                                <i class="bi bi-clock-fill me-1"></i>
+                                Iniciar preparación
                             </button>
                         </form>
                     {% elif pedido.estado == 'en_preparacion' %}
                         <form method="post"
                               action="{% url 'actualizar_estado_pedido' pedido.id %}">
                             {% csrf_token %}
-                            <input type="hidden" name="estado" value="listo">
-                            <button type="submit" class="btn btn-success w-100">
-                                <i class="bi bi-check-circle"></i> Marcar como listo
+                            <input type="hidden" name="estado"
+                                   value="listo">
+                            <input type="hidden" name="next"
+                                   value="vista_despacho">
+                            <button type="submit"
+                                    class="btn btn-success w-100 fw-bold">
+                                <i class="bi bi-check-circle-fill me-1"></i>
+                                ¡Listo para entregar!
                             </button>
                         </form>
                     {% endif %}
@@ -144,36 +250,40 @@
 
     {% else %}
     <div class="text-center py-5">
-        <i class="bi bi-check-circle text-success" style="font-size: 4rem;"></i>
-        <h3 class="mt-3 text-muted">No hay pedidos pendientes</h3>
-        <p class="text-muted">Todos los pedidos están al día.</p>
-        <a href="{% url 'registrar_pedido' %}" class="btn btn-primary mt-2">
-            <i class="bi bi-plus-circle"></i> Registrar nuevo pedido
+        <div class="rounded-circle d-inline-flex align-items-center
+                    justify-content-center mb-4"
+             style="width:100px; height:100px; background:#f0ecff;">
+            <i class="bi bi-check-circle-fill"
+               style="font-size:3rem; color:#9b87f5;"></i>
+        </div>
+        <h3 class="text-muted">No hay pedidos pendientes</h3>
+        <p class="text-muted">Todos los pedidos están al día. 🍦</p>
+        <a href="{% url 'registrar_pedido' %}"
+           class="btn btn-primary mt-2">
+            <i class="bi bi-plus-circle me-1"></i>
+            Registrar nuevo pedido
         </a>
     </div>
     {% endif %}
-
-    <!-- Agregar esta tarjeta en el row -->
-    <div class="col-md-4">
-        <div class="card mb-3">
-            <div class="card-body">
-                <h5 class="card-title">Vista de despacho</h5>
-                <p class="card-text">Pedidos en preparación</p>
-                <a href="{% url 'vista_despacho' %}" class="btn btn-warning btn-sm">
-                    <i class="bi bi-display"></i> Ver despacho
-                </a>
-            </div>
-        </div>
-    </div>
 </div>
 
+<style>
+.card:hover {
+    transform: none !important;
+}
+</style>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-    // Auto-actualizar cada 30 segundos
-    setTimeout(function() {
+// Contador regresivo visible
+var segundos = 30;
+var intervalo = setInterval(function() {
+    segundos--;
+    if (segundos <= 0) {
+        clearInterval(intervalo);
         location.reload();
-    }, 30000);
+    }
+}, 1000);
 </script>
 {% endblock %}

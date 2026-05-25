@@ -2,14 +2,27 @@
 {% block title %}{{ accion }} Receta{% endblock %}
 
 {% block content %}
-<div class="container mt-4" style="max-width:500px;">
+<div class="container mt-4" style="max-width:550px;">
     <h1 class="mb-4">{{ accion }} Receta</h1>
 
     {% if messages %}
         {% for message in messages %}
-            <div class="alert alert-danger">{{ message }}</div>
+            <div class="alert
+                {% if message.tags == 'success' %}alert-success
+                {% else %}alert-danger{% endif %}
+                alert-dismissible fade show">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
         {% endfor %}
     {% endif %}
+
+    <div class="alert alert-info py-2">
+        <i class="bi bi-info-circle"></i>
+        Ingresá la cantidad en la <strong>unidad del insumo</strong>
+        (ej: si el insumo es en kg, ingresá 0.5 para 500g).
+        El sistema convierte automáticamente.
+    </div>
 
     <form method="post">
         {% csrf_token %}
@@ -21,8 +34,7 @@
                 {% for producto in productos %}
                     <option value="{{ producto.id }}"
                         {% if receta.producto.id == producto.id %}selected{% endif %}>
-                        {{ producto.nombre }}
-                        ({{ producto.categoria.nombre }})
+                        {{ producto.nombre }} ({{ producto.categoria.nombre }})
                     </option>
                 {% endfor %}
             </select>
@@ -30,29 +42,34 @@
 
         <div class="mb-3">
             <label class="form-label">Insumo requerido</label>
-            <select name="insumo" class="form-select" required>
+            <select name="insumo" class="form-select" required id="selectInsumo">
                 <option value="">Seleccioná un insumo</option>
                 {% for insumo in insumos %}
                     <option value="{{ insumo.id }}"
+                            data-unidad="{{ insumo.unidad_medida.simbolo }}"
+                            data-stock="{{ insumo.stock_display }}"
                         {% if receta.insumo.id == insumo.id %}selected{% endif %}>
-                        {{ insumo.nombre }}
-                        ({{ insumo.unidad_medida.simbolo }}) —
-                        Stock: {{ insumo.stock_actual }}
+                        {{ insumo.nombre }} ({{ insumo.unidad_medida.simbolo }})
+                        — Stock: {{ insumo.stock_display }} {{ insumo.unidad_medida.simbolo }}
                     </option>
                 {% endfor %}
             </select>
         </div>
 
         <div class="mb-4">
-            <label class="form-label">Cantidad requerida por unidad</label>
+            <label class="form-label">
+                Cantidad requerida por unidad producida
+                <span id="labelUnidad" class="badge bg-secondary ms-1">—</span>
+            </label>
             <input type="number"
                    name="cantidad_requerida"
                    class="form-control"
-                   value="{{ receta.cantidad_requerida|default:'' }}"
-                   min="0" step="1" required>
+                   id="inputCantidad"
+                   value="{% if accion == 'Editar' %}{{ cantidad_display }}{% else %}{% endif %}"
+                   min="0" step="0.0001" required>
             <small class="text-muted">
-                Cantidad del insumo necesaria para producir 1 unidad del producto.
-                Ej: para 1 kg de helado se necesitan 2 litros de leche → poner 2.
+                Cantidad necesaria para producir <strong>1 unidad</strong> del producto.
+                Ej: 0.5 kg de leche por unidad de helado.
             </small>
         </div>
 
@@ -60,11 +77,27 @@
             <button type="submit" class="btn btn-success">
                 <i class="bi bi-check-circle"></i> {{ accion }} Receta
             </button>
-            <a href="{% url 'gestion_recetas' %}"
-               class="btn btn-secondary">
+            <a href="{% url 'gestion_recetas' %}" class="btn btn-secondary">
                 Cancelar
             </a>
         </div>
     </form>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Actualizar badge de unidad al cambiar insumo
+function actualizarUnidad() {
+    var select = document.getElementById('selectInsumo');
+    var opt    = select.options[select.selectedIndex];
+    var label  = document.getElementById('labelUnidad');
+    label.textContent = opt.dataset.unidad || '—';
+}
+
+document.getElementById('selectInsumo').addEventListener('change', actualizarUnidad);
+
+// Inicializar al cargar (para el caso de editar)
+document.addEventListener('DOMContentLoaded', actualizarUnidad);
+</script>
 {% endblock %}

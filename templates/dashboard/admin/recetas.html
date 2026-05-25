@@ -62,17 +62,26 @@
                         {% endif %}
                         <td>{{ receta.insumo.nombre }}</td>
                         <td>
-                            <strong>{{ receta.cantidad_requerida }}</strong>
+                            <strong>
+                                {{ receta.cantidad_requerida|floatformat:4 }}
+                                <!-- valor en unidad base -->
+                            </strong>
+                            —
+                            <!-- valor convertido a kg/L -->
+                            {% widthratio receta.cantidad_requerida receta.insumo.unidad_medida.factor_conversion 1 %}
+                            {{ receta.insumo.unidad_medida.simbolo }}
                         </td>
                         <td>{{ receta.insumo.unidad_medida.simbolo }}</td>
                         <td>
                             {% if receta.insumo.stock_actual <= receta.insumo.stock_minimo %}
                                 <span class="badge bg-danger">
-                                    {{ receta.insumo.stock_actual }} ⚠
+                                    {{ receta.insumo.stock_display }}
+                                    {{ receta.insumo.unidad_medida.simbolo }} ⚠
                                 </span>
                             {% else %}
                                 <span class="badge bg-success">
-                                    {{ receta.insumo.stock_actual }}
+                                    {{ receta.insumo.stock_display }}
+                                    {{ receta.insumo.unidad_medida.simbolo }}
                                 </span>
                             {% endif %}
                         </td>

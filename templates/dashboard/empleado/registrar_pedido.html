@@ -2,8 +2,37 @@
 {% block title %}Registrar Pedido{% endblock %}
 
 {% block content %}
-<div class="container mt-4" style="max-width:850px;">
-    <h1 class="mb-4">Registrar Nuevo Pedido</h1>
+<div class="container mt-4" style="max-width:900px;">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Registrar Nuevo Pedido</h1>
+        <a href="{% url 'gestion_pedidos' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-list-ul"></i> Ver pedidos
+        </a>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert
+                {% if message.tags == 'success' %}alert-success
+                {% elif message.tags == 'error' %}alert-danger
+                {% else %}alert-warning{% endif %}
+                alert-dismissible fade show">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Info de caja activa -->
+    <div class="alert alert-info py-2 mb-4">
+        <i class="bi bi-cash-stack"></i>
+        <strong>Caja activa:</strong>
+        {% if caja %}
+            Caja #{{ caja.id }} — abierta el {{ caja.fecha_apertura|date:"d/m/Y H:i" }}
+        {% else %}
+            <span class="text-danger">Sin caja abierta — no podés registrar pedidos.</span>
+        {% endif %}
+    </div>
 
     <form method="post" id="formPedido">
         {% csrf_token %}
@@ -49,8 +78,7 @@
                         <th></th>
                     </tr>
                 </thead>
-                <tbody id="filasProductos">
-                </tbody>
+                <tbody id="filasProductos"></tbody>
             </table>
         </div>
 
@@ -67,7 +95,8 @@
                 <a href="{% url 'gestion_pedidos' %}" class="btn btn-secondary">
                     Cancelar
                 </a>
-                <button type="submit" class="btn btn-success">
+                <button type="submit" class="btn btn-success"
+                        {% if not caja %}disabled title="Abrí la caja primero"{% endif %}>
                     <i class="bi bi-check-circle"></i> Registrar Pedido
                 </button>
             </div>
@@ -87,16 +116,16 @@
 <script>
 var store = document.getElementById('data-store');
 var rawProductos = JSON.parse(store.dataset.productos || '[]');
-var rawTamanos = JSON.parse(store.dataset.tamanos || '[]');
-var preciosData = JSON.parse(store.dataset.precios || '{}');
+var rawTamanos   = JSON.parse(store.dataset.tamanos   || '[]');
+var preciosData  = JSON.parse(store.dataset.precios   || '{}');
 var productosData = {};
 rawProductos.forEach(function(p) { productosData[p.id] = p.precio; });
 
-function buildOpts(arr, valKey, labelKey, selected) {
+function buildProductoOpts(selected) {
     var html = '<option value="">Seleccioná</option>';
-    arr.forEach(function(item) {
-        var sel = item[valKey] == selected ? ' selected' : '';
-        html += '<option value="' + item[valKey] + '"' + sel + '>' + item[labelKey] + '</option>';
+    rawProductos.forEach(function(p) {
+        var sel = p.id == selected ? ' selected' : '';
+        html += '<option value="' + p.id + '"' + sel + '>' + p.nombre + '</option>';
     });
     return html;
 }
@@ -113,20 +142,22 @@ function buildTamanoOpts(selected) {
 function calcularTotales() {
     var total = 0;
     document.querySelectorAll('.fila-producto').forEach(function(fila) {
-        var cant = parseInt(fila.querySelector('.cantidad').value) || 0;
-        var precio = parseInt(fila.querySelector('.precio').value) || 0;
-        var sub = cant * precio;
-        fila.querySelector('.subtotal').textContent = 'G. ' + sub.toLocaleString();
+        var cant   = parseInt(fila.querySelector('.cantidad').value) || 0;
+        var precio = parseInt(fila.querySelector('.precio').value)   || 0;
+        var sub    = cant * precio;
+        fila.querySelector('.subtotal').textContent =
+            'G. ' + sub.toLocaleString('es-PY');
         total += sub;
     });
-    document.getElementById('totalPedido').textContent = 'G. ' + total.toLocaleString();
+    document.getElementById('totalPedido').textContent =
+        'G. ' + total.toLocaleString('es-PY');
 }
 
 function actualizarPrecio(fila) {
-    var pid = fila.querySelector('.sel-producto').value;
-    var tid = fila.querySelector('.sel-tamano').value;
-    var key = pid + '_' + tid;
-    var inp = fila.querySelector('.precio');
+    var pid  = fila.querySelector('.sel-producto').value;
+    var tid  = fila.querySelector('.sel-tamano').value;
+    var key  = pid + '_' + tid;
+    var inp  = fila.querySelector('.precio');
     if (preciosData[key] !== undefined) {
         inp.value = preciosData[key];
     } else if (productosData[pid]) {
@@ -143,22 +174,33 @@ function crearFila(datos) {
     tr.className = 'fila-producto';
     tr.innerHTML =
         '<td><select name="producto_id[]" class="form-select form-select-sm sel-producto" required>' +
-        buildOpts(rawProductos, 'id', 'nombre', datos.producto_id || '') +
+            buildProductoOpts(datos.producto_id || '') +
         '</select></td>' +
         '<td><select name="tamano_id[]" class="form-select form-select-sm sel-tamano">' +
-        buildTamanoOpts(datos.tamano_id || '') +
+            buildTamanoOpts(datos.tamano_id || '') +
         '</select></td>' +
-        '<td><input type="number" name="cantidad[]" class="form-control form-control-sm cantidad" min="1" value="' + (datos.cantidad || 1) + '" required></td>' +
-        '<td><input type="number" name="precio_unitario[]" class="form-control form-control-sm precio" min="0" value="' + (datos.precio || 0) + '" required></td>' +
+        '<td><input type="number" name="cantidad[]" ' +
+            'class="form-control form-control-sm cantidad" ' +
+            'min="1" value="' + (datos.cantidad || 1) + '" required></td>' +
+        '<td><input type="number" name="precio_unitario[]" ' +
+            'class="form-control form-control-sm precio" ' +
+            'min="0" value="' + (datos.precio || 0) + '" required></td>' +
         '<td><span class="subtotal fw-bold text-primary">G. 0</span></td>' +
-        '<td><input type="text" name="obs_detalle[]" class="form-control form-control-sm" placeholder="Obs..." value="' + (datos.obs || '') + '"></td>' +
-        '<td><button type="button" class="btn btn-sm btn-danger btn-del"><i class="bi bi-trash"></i></button></td>';
+        '<td><input type="text" name="obs_detalle[]" ' +
+            'class="form-control form-control-sm" ' +
+            'placeholder="Obs..." value="' + (datos.obs || '') + '"></td>' +
+        '<td><button type="button" class="btn btn-sm btn-danger btn-del">' +
+            '<i class="bi bi-trash"></i></button></td>';
     return tr;
 }
 
 function bindFila(fila) {
-    fila.querySelector('.sel-producto').addEventListener('change', function() { actualizarPrecio(fila); });
-    fila.querySelector('.sel-tamano').addEventListener('change', function() { actualizarPrecio(fila); });
+    fila.querySelector('.sel-producto').addEventListener('change', function() {
+        actualizarPrecio(fila);
+    });
+    fila.querySelector('.sel-tamano').addEventListener('change', function() {
+        actualizarPrecio(fila);
+    });
     fila.querySelector('.cantidad').addEventListener('input', calcularTotales);
     fila.querySelector('.precio').addEventListener('input', calcularTotales);
     fila.querySelector('.btn-del').addEventListener('click', function() {
@@ -176,6 +218,7 @@ document.getElementById('btnAgregarFila').addEventListener('click', function() {
     calcularTotales();
 });
 
+// Agregar primera fila al cargar
 document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('btnAgregarFila').click();
 });

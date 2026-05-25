@@ -57,8 +57,9 @@ class SaborAdmin(admin.ModelAdmin):
 
 @admin.register(Addon)
 class AddonAdmin(admin.ModelAdmin):
-    list_display = ('name', 'price')
-    search_fields = ('name',)
+    list_display = ('nombre', 'precio_extra', 'insumo', 'activo')
+    list_filter  = ('activo',)
+    search_fields = ('nombre',)
 
 @admin.register(Tamano)
 class TamanoAdmin(admin.ModelAdmin):

@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load filtros %}
 {% block title %}Reportes{% endblock %}
 
 {% block content %}
@@ -13,7 +14,7 @@
                        style="font-size:3rem; color:#9b87f5;"></i>
                     <h5 class="mt-3">Reporte de Ventas</h5>
                     <p class="text-muted small">
-                        Ventas diarias y por día de la semana
+                        Ventas por período y día de la semana
                     </p>
                     <a href="{% url 'reporte_ventas' %}"
                        class="btn btn-primary btn-sm mt-2">
@@ -27,9 +28,9 @@
                 <div class="card-body py-4">
                     <i class="bi bi-bar-chart-fill"
                        style="font-size:3rem; color:#1D9E75;"></i>
-                    <h5 class="mt-3">Productos más vendidos</h5>
+                    <h5 class="mt-3">Productos vendidos</h5>
                     <p class="text-muted small">
-                        Ranking de productos por volumen de ventas
+                        Ranking por volumen de ventas y período
                     </p>
                     <a href="{% url 'reporte_productos' %}"
                        class="btn btn-success btn-sm mt-2">
@@ -45,7 +46,7 @@
                        style="font-size:3rem; color:#EF9F27;"></i>
                     <h5 class="mt-3">Top clientes</h5>
                     <p class="text-muted small">
-                        Los 10 clientes con más compras
+                        Los 10 clientes con más compras en el período
                     </p>
                     <a href="{% url 'reporte_clientes' %}"
                        class="btn btn-warning btn-sm mt-2">
@@ -61,7 +62,7 @@
                        style="font-size:3rem; color:#E24B4A;"></i>
                     <h5 class="mt-3">Costos y ganancias</h5>
                     <p class="text-muted small">
-                        Balance mensual de ingresos y egresos
+                        Balance de ingresos y egresos por período
                     </p>
                     <a href="{% url 'reporte_costos' %}"
                        class="btn btn-danger btn-sm mt-2">

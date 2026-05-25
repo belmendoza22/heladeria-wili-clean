@@ -1,13 +1,20 @@
 {% extends 'base.html' %}
+{% load filtros %}
 {% block title %}{{ accion }} Producto{% endblock %}
 
 {% block content %}
-<div class="container mt-4" style="max-width: 700px;">
+<div class="container mt-4" style="max-width:700px;">
     <h1 class="mb-4">{{ accion }} Producto</h1>
 
     {% if messages %}
         {% for message in messages %}
-            <div class="alert alert-danger">{{ message }}</div>
+            <div class="alert
+                {% if message.tags == 'success' %}alert-success
+                {% else %}alert-danger{% endif %}
+                alert-dismissible fade show">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
         {% endfor %}
     {% endif %}
 
@@ -22,8 +29,8 @@
 
         <div class="mb-3">
             <label class="form-label">Descripción</label>
-            <textarea name="descripcion" class="form-control"
-                      rows="3">{{ producto.descripcion|default:'' }}</textarea>
+            <textarea name="descripcion" class="form-control" rows="3">
+{{ producto.descripcion|default:'' }}</textarea>
         </div>
 
         <div class="mb-3">
@@ -32,7 +39,9 @@
                 <option value="">Seleccioná una categoría</option>
                 {% for categoria in categorias %}
                     <option value="{{ categoria.id }}"
-                        {% if producto.categoria.id == categoria.id %}selected{% endif %}>
+                        {% if producto.categoria.id == categoria.id %}
+                            selected
+                        {% endif %}>
                         {{ categoria.nombre }}
                     </option>
                 {% endfor %}
@@ -41,37 +50,80 @@
 
         <div class="row">
             <div class="col-md-6 mb-3">
-                <label class="form-label">Precio base (Gs.)</label>
-                <input type="number" name="precio_base" class="form-control"
-                       value="{{ producto.precio_base|default:'' }}" required>
-            </div>
-            <div class="col-md-6 mb-3">
                 <label class="form-label">Stock</label>
                 <input type="number" name="stock" class="form-control"
-                       value="{{ producto.stock|default:0 }}">
+                       value="{{ producto.stock|default:0 }}" min="0">
+                <small class="text-muted">
+                    Se actualiza automáticamente desde Producción.
+                </small>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label class="form-label">
+                    <div class="form-check mb-0">
+                        <input type="checkbox" name="destacado"
+                               class="form-check-input" id="destacado"
+                               {% if producto.destacado %}checked{% endif %}>
+                        <label class="form-check-label" for="destacado">
+                            Mostrar como destacado en el menú
+                        </label>
+                    </div>
+                </label>
             </div>
         </div>
 
         {% if tamanos %}
         <div class="mb-3">
-            <label class="form-label">Precios por tamaño (opcional)</label>
+            <label class="form-label fw-bold">
+                Precios por tamaño
+                <span class="text-muted small fw-normal">
+                    — dejá en 0 si no aplica ese tamaño
+                </span>
+            </label>
+            <div class="alert alert-info py-2 mb-2">
+                <small>
+                    <i class="bi bi-info-circle"></i>
+                    Los tamaños marcados como <strong>Solo producción</strong>
+                    no se muestran a clientes pero podés cargarles precio
+                    como referencia.
+                </small>
+            </div>
             <div class="table-responsive">
                 <table class="table table-sm table-bordered">
                     <thead class="table-light">
                         <tr>
                             <th>Tamaño</th>
+                            <th>Categoría</th>
+                            <th>Solo producción</th>
                             <th>Precio (Gs.)</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for tamano in tamanos %}
-                        <tr>
+                        <tr {% if tamano.solo_produccion %}
+                                class="table-light text-muted"{% endif %}>
                             <td>{{ tamano.nombre }}</td>
+                            <td>
+                                <small class="text-muted">
+                                    {{ tamano.categoria.nombre|default:"—" }}
+                                </small>
+                            </td>
+                            <td class="text-center">
+                                {% if tamano.solo_produccion %}
+                                    <span class="badge bg-warning text-dark">
+                                        Sí
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-light text-muted border">
+                                        No
+                                    </span>
+                                {% endif %}
+                            </td>
                             <td>
                                 <input type="number"
                                        name="precio_tamano_{{ tamano.id }}"
                                        class="form-control form-control-sm"
-                                       value="{{ precios_tamano|default:'' }}">
+                                       min="0"
+                                       value="{{ precios_tamano|get_item:tamano.id|default:0 }}">
                             </td>
                         </tr>
                         {% endfor %}
@@ -84,26 +136,19 @@
         <div class="mb-3">
             <label class="form-label">Imagen</label>
             {% if producto.imagen %}
-                <div class="mb-2">
-                    <img src="{{ producto.imagen.url }}" width="100"
+                <div class="mb-2 d-flex align-items-center gap-3">
+                    <img src="{{ producto.imagen.url }}" width="80"
                          style="border-radius:8px; object-fit:cover;">
-                    <small class="text-muted ms-2">Imagen actual</small>
+                    <small class="text-muted">
+                        Imagen actual — subí una nueva para reemplazarla
+                    </small>
                 </div>
             {% endif %}
-            <input type="file" name="imagen" class="form-control" accept="image/*">
+            <input type="file" name="imagen" class="form-control"
+                   accept="image/*">
         </div>
 
-        <div class="mb-4">
-            <div class="form-check">
-                <input type="checkbox" name="destacado" class="form-check-input"
-                       id="destacado" {% if producto.destacado %}checked{% endif %}>
-                <label class="form-check-label" for="destacado">
-                    Mostrar como producto destacado en el menú
-                </label>
-            </div>
-        </div>
-
-        <div class="d-flex gap-2">
+        <div class="d-flex gap-2 mt-4">
             <button type="submit" class="btn btn-success">
                 <i class="bi bi-check-circle"></i> {{ accion }} Producto
             </button>

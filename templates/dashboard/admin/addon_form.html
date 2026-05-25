@@ -1,0 +1,145 @@
+{% extends 'base.html' %}
+{% block title %}{{ accion }} Agregado{% endblock %}
+
+{% block content %}
+<div class="container mt-4" style="max-width:600px;">
+    <h1 class="mb-4">{{ accion }} Agregado</h1>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-danger alert-dismissible fade show">
+                {{ message }}
+                <button type="button" class="btn-close"
+                        data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="alert alert-info py-2">
+        <i class="bi bi-info-circle"></i>
+        Si no seleccionás ninguna categoría, el agregado aparecerá
+        en <strong>todas las categorías</strong>.
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+
+        <div class="mb-3">
+            <label class="form-label">Nombre del agregado</label>
+            <input type="text" name="nombre" class="form-control"
+                   value="{{ addon.nombre|default:'' }}"
+                   placeholder="Ej: Confetis, Cobertura de chocolate"
+                   required>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">
+                Precio extra (Gs.)
+                <span class="text-muted small">— 0 si es gratis</span>
+            </label>
+            <input type="number" name="precio_extra" class="form-control"
+                   value="{{ addon.precio_extra|default:0 }}" min="0">
+        </div>
+
+        <!-- Categorías donde aparece -->
+        <div class="mb-3">
+            <label class="form-label fw-bold">
+                Categorías donde se muestra
+            </label>
+            <div class="border rounded p-3">
+                <div class="row g-2">
+                    {% for categoria in categorias %}
+                    <div class="col-md-6">
+                        <div class="form-check">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   name="categorias[]"
+                                   value="{{ categoria.id }}"
+                                   id="cat_{{ categoria.id }}"
+                                   {% if categoria.id in categorias_seleccionadas %}
+                                       checked{% endif %}>
+                            <label class="form-check-label"
+                                   for="cat_{{ categoria.id }}">
+                                {{ categoria.nombre }}
+                            </label>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <small class="text-muted mt-2 d-block">
+                    <i class="bi bi-info-circle"></i>
+                    Sin selección = aparece en todas las categorías.
+                </small>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">
+                Insumo asociado
+                <span class="text-muted small">(opcional)</span>
+            </label>
+            <select name="insumo_id" class="form-select" id="selectInsumo">
+                <option value="">Sin insumo — no descuenta stock</option>
+                {% for insumo in insumos %}
+                    <option value="{{ insumo.id }}"
+                            data-unidad="{{ insumo.unidad_medida.simbolo }}"
+                        {% if addon.insumo.id == insumo.id %}selected{% endif %}>
+                        {{ insumo.nombre }}
+                        ({{ insumo.unidad_medida.simbolo }})
+                        — Stock: {{ insumo.stock_display }}
+                        {{ insumo.unidad_medida.simbolo }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="mb-4">
+            <label class="form-label">
+                Cantidad a descontar por porción
+                <span id="badgeUnidad" class="badge bg-secondary ms-1">—</span>
+            </label>
+            <input type="number" name="cantidad_descontar"
+                   class="form-control"
+                   value="{% if accion == 'Editar' %}{{ cantidad_display }}{% else %}0{% endif %}"
+                   min="0" step="0.0001"
+                   placeholder="Ej: 0.050 para 50g si el insumo es kg">
+            <small class="text-muted">
+                Ingresá en la unidad del insumo.
+            </small>
+        </div>
+
+        <div class="mb-4">
+            <div class="form-check">
+                <input type="checkbox" name="activo"
+                       class="form-check-input" id="activo"
+                       {% if addon.activo or not addon %}checked{% endif %}>
+                <label class="form-check-label" for="activo">
+                    Activo — visible para los clientes
+                </label>
+            </div>
+        </div>
+
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-success">
+                <i class="bi bi-check-circle"></i> {{ accion }} Agregado
+            </button>
+            <a href="{% url 'gestion_addons' %}" class="btn btn-secondary">
+                Cancelar
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function actualizarUnidad() {
+    var select = document.getElementById('selectInsumo');
+    var opt    = select.options[select.selectedIndex];
+    var badge  = document.getElementById('badgeUnidad');
+    badge.textContent = opt.dataset.unidad || '—';
+}
+document.getElementById('selectInsumo').addEventListener('change', actualizarUnidad);
+document.addEventListener('DOMContentLoaded', actualizarUnidad);
+</script>
+{% endblock %}

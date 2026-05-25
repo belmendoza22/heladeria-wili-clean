@@ -53,30 +53,27 @@
 
         <div class="row">
             <div class="col-md-6 mb-3">
-                <label class="form-label">Stock actual</label>
-                <input type="number" name="stock_actual"
-                       class="form-control" step="0.001"
-                       value="{{ insumo.stock_en_unidad_display|default:0|floatformat:3 }}"
-                       min="0">
-                <small class="text-muted">
-                    Ingresá en la unidad seleccionada (ej: 25 kg)
-                </small>
-            </div>
-            <div class="col-md-6 mb-3">
-                <label class="form-label">Stock mínimo</label>
-                <input type="number" name="stock_minimo"
-                       class="form-control" step="0.001"
-                       value="{{ insumo.stock_minimo|default:0|floatformat:3 }}"
-                       min="0">
-            </div>
+            <label class="form-label">Stock actual</label>
+            <input type="number" name="stock_actual"
+                   class="form-control" step="0.001" min="0"
+                   value="{% if accion == 'Editar' %}{{ stock_display }}{% else %}0{% endif %}"
+                   required>
+            <small class="text-muted">
+                Ingresá en la unidad seleccionada (ej: 28.750 kg)
+            </small>
+        </div>
+        <div class="col-md-6 mb-3">
+            <label class="form-label">Stock mínimo</label>
+            <input type="number" name="stock_minimo"
+                   class="form-control" step="0.001" min="0"
+                   value="{% if accion == 'Editar' %}{{ stock_minimo_display }}{% else %}0{% endif %}">
+        </div>
         </div>
 
-        <div class="mb-4">
-            <label class="form-label">Precio unitario promedio (Gs.)</label>
-            <input type="number" name="precio_unitario_promedio"
-                   class="form-control" step="0.01"
-                   value="{{ insumo.precio_unitario_promedio|default:0|floatformat:2 }}"
-                   min="0">
+        <div class="alert alert-info py-2 mb-4">
+            <i class="bi bi-info-circle"></i>
+            El precio unitario se actualiza automáticamente al registrar
+            compras en <strong>Control de Stock</strong>.
         </div>
 
         <div class="d-flex gap-2">

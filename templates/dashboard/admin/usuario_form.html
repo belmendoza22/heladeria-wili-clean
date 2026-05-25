@@ -10,7 +10,13 @@
 
     {% if messages %}
         {% for message in messages %}
-            <div class="alert alert-danger">{{ message }}</div>
+            <div class="alert
+                {% if message.tags == 'success' %}alert-success
+                {% else %}alert-danger{% endif %}
+                alert-dismissible fade show">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
         {% endfor %}
     {% endif %}
 
@@ -37,21 +43,23 @@
         </div>
 
         {% if not usuario %}
-        <div class="mb-3">
-            <label class="form-label">Nombre de usuario</label>
-            <input type="text" name="username" class="form-control" required>
-        </div>
-        <div class="mb-3">
-            <label class="form-label">Contraseña</label>
-            <input type="password" name="password" class="form-control" required>
-        </div>
+            <!-- Solo al CREAR -->
+            <div class="mb-3">
+                <label class="form-label">Nombre de usuario</label>
+                <input type="text" name="username" class="form-control" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Contraseña</label>
+                <input type="password" name="password" class="form-control" required>
+            </div>
         {% else %}
-        <div class="mb-3">
-            <label class="form-label">Usuario</label>
-            <input type="text" class="form-control"
-                   value="{{ usuario.username }}" disabled>
-            <small class="text-muted">El nombre de usuario no se puede cambiar.</small>
-        </div>
+            <!-- Solo al EDITAR -->
+            <div class="mb-3">
+                <label class="form-label">Usuario</label>
+                <input type="text" class="form-control"
+                       value="{{ usuario.username }}" disabled>
+                <small class="text-muted">El nombre de usuario no se puede cambiar.</small>
+            </div>
         {% endif %}
 
         <div class="mb-3">
@@ -60,7 +68,9 @@
                 <option value="">Sin rol</option>
                 {% for rol in roles %}
                     <option value="{{ rol.id }}"
-                        {% if usuario.profile.rol.id == rol.id %}selected{% endif %}>
+                        {% if usuario %}
+                            {% if usuario.profile.rol.id == rol.id %}selected{% endif %}
+                        {% endif %}>
                         {{ rol.nombre }}
                     </option>
                 {% endfor %}

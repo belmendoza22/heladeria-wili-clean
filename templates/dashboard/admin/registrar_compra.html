@@ -5,17 +5,47 @@
 <div class="container mt-4" style="max-width: 800px;">
     <h1 class="mb-4">Registrar Compra de Insumos</h1>
 
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert
+                {% if message.tags == 'success' %}alert-success
+                {% else %}alert-danger{% endif %}
+                alert-dismissible fade show">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="alert alert-info py-2">
+        <i class="bi bi-info-circle"></i>
+        Ingresá las cantidades en la <strong>unidad indicada entre paréntesis</strong>
+        (ej: kg, L). El sistema convierte automáticamente al stock interno.
+    </div>
+
+    <div class="card mb-3 bg-light">
+        <div class="card-body py-2">
+            <small class="text-muted">
+                <i class="bi bi-box-seam"></i>
+                <strong>Caja activa:</strong>
+                {% if caja %}
+                    Caja #{{ caja.id }} — abierta el {{ caja.fecha_apertura|date:"d/m/Y H:i" }}
+                {% else %}
+                    <span class="text-danger">Sin caja abierta</span>
+                {% endif %}
+            </small>
+        </div>
+    </div>
+
     <form method="post" id="formCompra">
         {% csrf_token %}
 
         <div class="mb-4">
-            <label class="form-label">Proveedor</label>
+            <label class="form-label fw-bold">Proveedor</label>
             <select name="proveedor" class="form-select" required>
                 <option value="">Seleccioná un proveedor</option>
                 {% for proveedor in proveedores %}
-                    <option value="{{ proveedor.id }}">
-                        {{ proveedor.nombre }}
-                    </option>
+                    <option value="{{ proveedor.id }}">{{ proveedor.nombre }}</option>
                 {% endfor %}
             </select>
         </div>
@@ -35,19 +65,26 @@
                 <tbody id="filasInsumos">
                     <tr class="fila-insumo">
                         <td>
-                            <select name="insumo_id[]" class="form-select form-select-sm" required>
+                            <select name="insumo_id[]"
+                                    class="form-select form-select-sm select-insumo"
+                                    required>
                                 <option value="">Seleccioná</option>
                                 {% for insumo in insumos %}
-                                    <option value="{{ insumo.id }}">
-                                        {{ insumo.nombre }} ({{ insumo.unidad_medida.simbolo }})
+                                    <option value="{{ insumo.id }}"
+                                            data-unidad="{{ insumo.unidad_medida.simbolo }}">
+                                        {{ insumo.nombre }}
+                                        ({{ insumo.unidad_medida.simbolo }})
                                     </option>
                                 {% endfor %}
                             </select>
                         </td>
                         <td>
-                            <input type="number" name="cantidad[]"
-                                   class="form-control form-control-sm cantidad"
-                                   min="1" value="1" required>
+                            <div class="input-group input-group-sm">
+                                <input type="number" name="cantidad[]"
+                                       class="form-control form-control-sm cantidad"
+                                       min="0.001" step="0.001" value="1" required>
+                                <span class="input-group-text unidad-label text-muted">—</span>
+                            </div>
                         </td>
                         <td>
                             <input type="number" name="precio_unitario[]"
@@ -74,7 +111,10 @@
         </button>
 
         <div class="d-flex justify-content-between align-items-center mt-3">
-            <h5>Total: <span id="totalCompra" class="text-success">G. 0</span></h5>
+            <h5>
+                Total:
+                <span id="totalCompra" class="text-success fw-bold">G. 0</span>
+            </h5>
             <div class="d-flex gap-2">
                 <a href="{% url 'control_stock' %}" class="btn btn-secondary">
                     Cancelar
@@ -90,44 +130,50 @@
 
 {% block extra_js %}
 <script>
-const insumoOptions = `{% for insumo in insumos %}<option value="{{ insumo.id }}">{{ insumo.nombre }} ({{ insumo.unidad_medida.simbolo }})</option>{% endfor %}`;
+// Opciones de insumos con data-unidad para mostrar la etiqueta
+const insumoOptions = `
+    {% for insumo in insumos %}
+    <option value="{{ insumo.id }}"
+            data-unidad="{{ insumo.unidad_medida.simbolo }}">
+        {{ insumo.nombre }} ({{ insumo.unidad_medida.simbolo }})
+    </option>
+    {% endfor %}
+`;
 
 function calcularTotales() {
     let total = 0;
-    document.querySelectorAll('.fila-insumo').forEach(fila => {
-        const cantidad = parseInt(fila.querySelector('.cantidad').value) || 0;
+    document.querySelectorAll('.fila-insumo').forEach(function(fila) {
+        const cantidad = parseFloat(fila.querySelector('.cantidad').value) || 0;
         const precio = parseInt(fila.querySelector('.precio').value) || 0;
         const subtotal = cantidad * precio;
-        fila.querySelector('.subtotal').textContent = `G. ${subtotal.toLocaleString()}`;
+        fila.querySelector('.subtotal').textContent = 'G. ' + subtotal.toLocaleString('es-PY', {maximumFractionDigits: 0});
         total += subtotal;
     });
-    document.getElementById('totalCompra').textContent = `G. ${total.toLocaleString()}`;
+    document.getElementById('totalCompra').textContent =
+        'G. ' + total.toLocaleString('es-PY', {maximumFractionDigits: 0});
 }
 
-document.getElementById('btnAgregarFila').addEventListener('click', function () {
-    const tbody = document.getElementById('filasInsumos');
-    const nuevaFila = document.createElement('tr');
-    nuevaFila.className = 'fila-insumo';
-    nuevaFila.innerHTML = `
-        <td>
-            <select name="insumo_id[]" class="form-select form-select-sm" required>
-                <option value="">Seleccioná</option>
-                ${insumoOptions}
-            </select>
-        </td>
-        <td><input type="number" name="cantidad[]" class="form-control form-control-sm cantidad" min="1" value="1" required></td>
-        <td><input type="number" name="precio_unitario[]" class="form-control form-control-sm precio" min="0" value="0" required></td>
-        <td><span class="subtotal fw-bold">G. 0</span></td>
-        <td><button type="button" class="btn btn-sm btn-danger btn-eliminar-fila"><i class="bi bi-trash"></i></button></td>
-    `;
-    tbody.appendChild(nuevaFila);
-    agregarEventosFila(nuevaFila);
-});
+// Actualizar etiqueta de unidad al cambiar insumo
+function actualizarUnidad(select) {
+    const opt = select.options[select.selectedIndex];
+    const unidad = opt.dataset.unidad || '—';
+    const label = select.closest('tr').querySelector('.unidad-label');
+    if (label) label.textContent = unidad;
+}
 
 function agregarEventosFila(fila) {
-    fila.querySelector('.cantidad').addEventListener('input', calcularTotales);
-    fila.querySelector('.precio').addEventListener('input', calcularTotales);
-    fila.querySelector('.btn-eliminar-fila').addEventListener('click', function () {
+    const selectInsumo = fila.querySelector('.select-insumo');
+    const inputCantidad = fila.querySelector('.cantidad');
+    const inputPrecio = fila.querySelector('.precio');
+    const btnEliminar = fila.querySelector('.btn-eliminar-fila');
+
+    selectInsumo.addEventListener('change', function() {
+        actualizarUnidad(this);
+        calcularTotales();
+    });
+    inputCantidad.addEventListener('input', calcularTotales);
+    inputPrecio.addEventListener('input', calcularTotales);
+    btnEliminar.addEventListener('click', function() {
         if (document.querySelectorAll('.fila-insumo').length > 1) {
             fila.remove();
             calcularTotales();
@@ -135,6 +181,42 @@ function agregarEventosFila(fila) {
     });
 }
 
+document.getElementById('btnAgregarFila').addEventListener('click', function() {
+    const tbody = document.getElementById('filasInsumos');
+    const nuevaFila = document.createElement('tr');
+    nuevaFila.className = 'fila-insumo';
+    nuevaFila.innerHTML = `
+        <td>
+            <select name="insumo_id[]" class="form-select form-select-sm select-insumo" required>
+                <option value="">Seleccioná</option>
+                ${insumoOptions}
+            </select>
+        </td>
+        <td>
+            <div class="input-group input-group-sm">
+                <input type="number" name="cantidad[]"
+                       class="form-control form-control-sm cantidad"
+                       min="0.001" step="0.001" value="1" required>
+                <span class="input-group-text unidad-label text-muted">—</span>
+            </div>
+        </td>
+        <td>
+            <input type="number" name="precio_unitario[]"
+                   class="form-control form-control-sm precio"
+                   min="0" value="0" required>
+        </td>
+        <td><span class="subtotal fw-bold">G. 0</span></td>
+        <td>
+            <button type="button" class="btn btn-sm btn-danger btn-eliminar-fila">
+                <i class="bi bi-trash"></i>
+            </button>
+        </td>
+    `;
+    tbody.appendChild(nuevaFila);
+    agregarEventosFila(nuevaFila);
+});
+
+// Inicializar filas existentes
 document.querySelectorAll('.fila-insumo').forEach(agregarEventosFila);
 </script>
 {% endblock %}

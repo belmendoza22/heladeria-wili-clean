@@ -346,17 +346,22 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 40px;
-        height: 40px;
-        background-color: rgba(255,255,255,0.2);
+        width: 42px;
+        height: 42px;
+        background-color: #9b87f5;
         border-radius: 50%;
-        margin-right: 10px;
+        margin-right: 8px;
         transition: all 0.3s ease;
+        color: white !important;
+        font-size: 18px;
+        text-decoration: none;
     }
 
     .social-icon:hover {
-        background-color: white;
-        color: var(--lila-principal);
+        background-color: #7b68ee;
+        color: white !important;
+        transform: translateY(-3px);
+        box-shadow: 0 4px 12px rgba(155,135,245,.4);
     }
 
     /* ── NOTIFICACIONES ── */
@@ -505,12 +510,30 @@
                                     </a>
                                 </li>
                                 <li>
+                                    <a class="dropdown-item"
+                                    href="{% url 'gestion_addons' %}">
+                                        <i class="bi bi-stars"></i> Agregados
+                                    </a>
+                                </li>
+                                <li>
                                     <a class="dropdown-item" 
                                     href="{% url 'registrar_produccion' %}">
                                         <i class="bi bi-gear-fill"></i> Producción
                                     </a>
                                 </li>
+                                <li>
+                                    <a class="dropdown-item"
+                                    href="{% url 'historial_produccion' %}">
+                                        <i class="bi bi-clock-history"></i> Historial producción
+                                    </a>
+                                </li>
                                 <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item"
+                                    href="{% url 'gestion_caja' %}">
+                                        <i class="bi bi-cash-stack"></i> Caja
+                                    </a>
+                                </li>
                                 <li>
                                     <a class="dropdown-item"
                                     href="{% url 'gestion_pedidos' %}">
@@ -534,6 +557,13 @@
                                     <a class="dropdown-item"
                                     href="{% url 'reportes' %}">
                                         <i class="bi bi-graph-up"></i> Reportes
+                                    </a>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item"
+                                    href="{% url 'gestion_caja' %}">
+                                        <i class="bi bi-cash-stack"></i> Caja
                                     </a>
                                 </li>
                             </ul>
@@ -568,6 +598,18 @@
                                         <a class="dropdown-item"
                                            href="{% url 'vista_despacho' %}">
                                             <i class="bi bi-display"></i> Despacho
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item"
+                                           href="{% url 'gestion_caja' %}">
+                                            <i class="bi bi-cash-stack"></i> Caja
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item"
+                                           href="{% url 'mis_pedidos' %}">
+                                            <i class="bi bi-bag"></i> Mis pedidos
                                         </a>
                                     </li>
                                 </ul>
@@ -613,8 +655,10 @@
                                 <span class="dropdown-item-text small">
                                     <strong>{{ alerta.nombre }}</strong><br>
                                     <span class="text-muted">
-                                        Actual: {{ alerta.stock_actual }} —
-                                        Mínimo: {{ alerta.stock_minimo }}
+                                        Actual: {{ alerta.stock_display }}
+                                        {{ alerta.unidad_medida.simbolo }} —
+                                        Mínimo: {{ alerta.stock_minimo_display }}
+                                        {{ alerta.unidad_medida.simbolo }}
                                     </span>
                                 </span>
                             </li>

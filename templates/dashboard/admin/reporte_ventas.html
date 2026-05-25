@@ -1,50 +1,78 @@
 {% extends 'base.html' %}
+{% load filtros %}
 {% block title %}Reporte de Ventas{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4 no-print">
         <h1>Reporte de Ventas</h1>
-        <a href="{% url 'reportes' %}" class="btn btn-secondary btn-sm">
-            <i class="bi bi-arrow-left"></i> Volver
-        </a>
+        <div class="d-flex gap-2">
+            <button onclick="window.print()" class="btn btn-outline-dark btn-sm">
+                <i class="bi bi-printer"></i> Imprimir
+            </button>
+            <a href="{% url 'reportes' %}" class="btn btn-secondary btn-sm">
+                <i class="bi bi-arrow-left"></i> Volver
+            </a>
+        </div>
     </div>
 
-    <!-- Filtros -->
-    <form method="get" class="card p-3 mb-4">
+    <div class="print-header" style="display:none;">
+        <h2>Heladería Wili — Reporte de Ventas</h2>
+        <p>
+            Período:
+            {% if fecha_inicio %}{{ fecha_inicio }}{% else %}—{% endif %}
+            al
+            {% if fecha_fin %}{{ fecha_fin }}{% else %}—{% endif %}
+        </p>
+        <hr>
+    </div>
+
+    <form method="get" class="card p-3 mb-4 no-print">
         <div class="row g-3 align-items-end">
             <div class="col-md-4">
                 <label class="form-label">Fecha inicio</label>
-                <input type="date" name="fecha_inicio"
-                       class="form-control"
+                <input type="date" name="fecha_inicio" class="form-control"
                        value="{{ fecha_inicio|default:'' }}">
             </div>
             <div class="col-md-4">
                 <label class="form-label">Fecha fin</label>
-                <input type="date" name="fecha_fin"
-                       class="form-control"
+                <input type="date" name="fecha_fin" class="form-control"
                        value="{{ fecha_fin|default:'' }}">
             </div>
-            <div class="col-md-4">
+            <div class="col-md-4 d-flex gap-2">
                 <button type="submit" class="btn btn-primary w-100">
                     <i class="bi bi-search"></i> Filtrar
                 </button>
+                <a href="{% url 'reporte_ventas' %}"
+                   class="btn btn-outline-secondary">
+                    <i class="bi bi-x"></i>
+                </a>
             </div>
         </div>
     </form>
 
+    {% if fecha_inicio or fecha_fin %}
+    <div class="alert alert-light border mb-4 py-2">
+        <i class="bi bi-calendar-range"></i>
+        Período:
+        {% if fecha_inicio %}<strong>{{ fecha_inicio }}</strong>{% endif %}
+        {% if fecha_fin %}al <strong>{{ fecha_fin }}</strong>{% endif %}
+    </div>
+    {% endif %}
+
     <!-- Resumen -->
-    <div class="row mb-4">
+    <div class="row mb-4 g-3">
         <div class="col-md-6">
-            <div class="card text-center border-primary">
+            <div class="card text-center border-primary h-100">
                 <div class="card-body">
                     <h6 class="text-muted">Total ventas</h6>
-                    <h3 class="text-primary">G. {{ total_ventas }}</h3>
+                    <h3 class="text-primary">{{ total_ventas|guaranies }}</h3>
                 </div>
             </div>
         </div>
         <div class="col-md-6">
-            <div class="card text-center border-success">
+            <div class="card text-center border-success h-100">
                 <div class="card-body">
                     <h6 class="text-muted">Cantidad de pedidos</h6>
                     <h3 class="text-success">{{ cantidad_pedidos }}</h3>
@@ -53,77 +81,38 @@
         </div>
     </div>
 
-    <!-- Ventas por día de la semana -->
+    <!-- Solo ventas por día -->
     <h5 class="mb-3">Ventas por día de la semana</h5>
-    <div class="table-responsive mb-4">
+    <div class="table-responsive">
         <table class="table table-bordered align-middle">
             <thead class="table-dark">
                 <tr>
                     <th>Día</th>
                     <th>Pedidos</th>
                     <th>Total</th>
-                    <th>Ticket promedio</th>
                 </tr>
             </thead>
             <tbody>
                 {% for dia in ventas_por_dia %}
-                <tr>
+                <tr {% if dia.cantidad == 0 %}class="text-muted"{% endif %}>
                     <td><strong>{{ dia.dia }}</strong></td>
-                    <td>{{ dia.cantidad }}</td>
-                    <td>G. {{ dia.total }}</td>
                     <td>
                         {% if dia.cantidad > 0 %}
-                            G. {{ dia.total|floatformat:0 }}
+                            <span class="badge bg-success">
+                                {{ dia.cantidad }}
+                            </span>
                         {% else %}
-                            —
+                            <span class="badge bg-light text-muted border">
+                                0
+                            </span>
                         {% endif %}
                     </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-
-    <!-- Últimos pedidos -->
-    <h5 class="mb-3">Últimos pedidos</h5>
-    <div class="table-responsive">
-        <table class="table table-bordered align-middle">
-            <thead class="table-dark">
-                <tr>
-                    <th>#</th>
-                    <th>Fecha</th>
-                    <th>Cliente</th>
-                    <th>Tipo</th>
-                    <th>Total</th>
-                    <th>Estado</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for pedido in pedidos %}
-                <tr>
-                    <td>{{ pedido.id }}</td>
-                    <td>{{ pedido.fecha_pedido|date:"d/m/Y H:i" }}</td>
                     <td>
-                        {% if pedido.cliente %}
-                            {{ pedido.cliente.get_full_name|default:pedido.cliente.username }}
+                        {% if dia.total > 0 %}
+                            {{ dia.total|guaranies }}
                         {% else %}
-                            Sin cliente
+                            <span class="text-muted">—</span>
                         {% endif %}
-                    </td>
-                    <td>{{ pedido.get_tipo_pedido_display }}</td>
-                    <td>G. {{ pedido.total }}</td>
-                    <td>
-                        <span class="badge
-                            {% if pedido.estado == 'entregado' %}bg-dark
-                            {% else %}bg-success{% endif %}">
-                            {{ pedido.get_estado_display }}
-                        </span>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="6" class="text-center text-muted">
-                        No hay pedidos en el período seleccionado.
                     </td>
                 </tr>
                 {% endfor %}
@@ -131,4 +120,18 @@
         </table>
     </div>
 </div>
+
+<style>
+@media print {
+    .no-print { display: none !important; }
+    .print-header { display: block !important; }
+    .navbar, footer { display: none !important; }
+    .container { max-width:100% !important; padding:0 !important; }
+    .card { box-shadow:none !important; border:1px solid #ddd !important; }
+    .table { font-size:12px !important; }
+    .badge { border:1px solid #333 !important;
+             color:#000 !important;
+             background:transparent !important; }
+}
+</style>
 {% endblock %}

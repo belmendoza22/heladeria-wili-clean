@@ -55,21 +55,24 @@
                     <td>
                         {% if insumo.stock_actual <= 0 %}
                             <span class="badge bg-danger">
-                                {{ insumo.stock_actual }} — Agotado
+                                0 {{ insumo.unidad_medida.simbolo }} — Agotado
                             </span>
                         {% elif insumo.stock_actual <= insumo.stock_minimo %}
                             <span class="badge bg-warning text-dark">
-                                {{ insumo.stock_en_unidad_display|floatformat:2 }}
+                                {{ insumo.stock_display }}
                                 {{ insumo.unidad_medida.simbolo }} — Stock Bajo
                             </span>
                         {% else %}
                             <span class="badge bg-success">
-                                {{ insumo.stock_en_unidad_display|floatformat:2 }}
+                                {{ insumo.stock_display }}
                                 {{ insumo.unidad_medida.simbolo }}
                             </span>
                         {% endif %}
                     </td>
-                    <td>{{ insumo.stock_minimo }}</td>
+                    <td>
+                        {{ insumo.stock_minimo_display }}
+                        {{ insumo.unidad_medida.simbolo }}
+                    </td>
                     <td>G. {{ insumo.precio_unitario_promedio|floatformat:0 }}</td>
                     <td class="text-muted small">
                         {{ insumo.ultima_actualizacion|date:"d/m/Y H:i" }}

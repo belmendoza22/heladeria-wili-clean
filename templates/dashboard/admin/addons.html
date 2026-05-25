@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+{% load filtros %}
+{% block title %}Gestión de Agregados{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Agregados / Toppings</h1>
+        <div class="d-flex gap-2">
+            <a href="{% url 'crear_addon' %}" class="btn btn-success">
+                <i class="bi bi-plus-circle"></i> Nuevo Agregado
+            </a>
+            <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary">
+                <i class="bi bi-arrow-left"></i> Volver al panel
+            </a>
+        </div>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert
+                {% if message.tags == 'success' %}alert-success
+                {% else %}alert-danger{% endif %}
+                alert-dismissible fade show">
+                {{ message }}
+                <button type="button" class="btn-close"
+                        data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="alert alert-info py-2">
+        <i class="bi bi-info-circle"></i>
+        Los agregados se descuentan del insumo asociado cuando un pedido
+        pasa a <strong>En preparación</strong>.
+        Si no tiene categoría asignada, aparece en <strong>todas</strong>.
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th>Nombre</th>
+                    <th>Precio extra</th>
+                    <th>Categorías</th>
+                    <th>Insumo asociado</th>
+                    <th>Cantidad / porción</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for addon in addons %}
+                <tr>
+                    <td><strong>{{ addon.nombre }}</strong></td>
+                    <td>
+                        {% if addon.precio_extra > 0 %}
+                            {{ addon.precio_extra|guaranies }}
+                        {% else %}
+                            <span class="badge bg-success">Gratis</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% with cats=addon.categorias.all %}
+                        {% if cats %}
+                            {% for cat in cats %}
+                                <span class="badge bg-primary me-1">
+                                    {{ cat.nombre }}
+                                </span>
+                            {% endfor %}
+                        {% else %}
+                            <span class="badge bg-secondary">
+                                Todas las categorías
+                            </span>
+                        {% endif %}
+                        {% endwith %}
+                    </td>
+                    <td>
+                        {% if addon.insumo %}
+                            {{ addon.insumo.nombre }}
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if addon.insumo and addon.cantidad_descontar %}
+                            {% widthratio addon.cantidad_descontar addon.insumo.unidad_medida.factor_conversion 1 %}
+                            {{ addon.insumo.unidad_medida.simbolo }}
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if addon.activo %}
+                            <span class="badge bg-success">Activo</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Inactivo</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{% url 'editar_addon' addon.id %}"
+                           class="btn btn-sm btn-warning">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                        <form method="post"
+                              action="{% url 'eliminar_addon' addon.id %}"
+                              style="display:inline;"
+                              onsubmit="return confirm(
+                                  '¿Eliminar {{ addon.nombre }}?')">
+                            {% csrf_token %}
+                            <button type="submit"
+                                    class="btn btn-sm btn-danger">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7"
+                        class="text-center text-muted py-4">
+                        No hay agregados cargados.
+                        <a href="{% url 'crear_addon' %}">
+                            Crear el primero
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

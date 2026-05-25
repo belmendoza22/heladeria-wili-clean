@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load filtros %}
 {% block title %}Gestión de Caja{% endblock %}
 
 {% block content %}
@@ -7,7 +8,7 @@
         <h1>Gestión de Caja</h1>
         {% if not caja %}
             <a href="{% url 'apertura_caja' %}" class="btn btn-success">
-                <i class="bi bi-lock-fill"></i> Abrir caja
+                <i class="bi bi-unlock-fill"></i> Abrir caja
             </a>
         {% endif %}
     </div>
@@ -20,72 +21,97 @@
                 {% else %}alert-danger{% endif %}
                 alert-dismissible fade show">
                 {{ message }}
-                <button type="button" class="btn-close"
-                        data-bs-dismiss="alert"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
         {% endfor %}
     {% endif %}
 
     {% if caja %}
-    <!-- Caja abierta -->
-    <div class="row mb-4">
+    <!-- Info de la caja activa -->
+    <div class="alert alert-info py-2 mb-4">
+        <i class="bi bi-clock"></i>
+        <strong>Caja #{{ caja.id }}</strong> —
+        Cajero: <strong>{{ caja.empleado_cajero.get_full_name|default:caja.empleado_cajero.username }}</strong> —
+        Abierta el {{ caja.fecha_apertura|date:"d/m/Y" }}
+        a las {{ caja.fecha_apertura|date:"H:i" }}
+    </div>
+
+    <!-- Tarjetas resumen -->
+    <div class="row mb-4 g-3">
         <div class="col-md-3">
-            <div class="card text-center border-success">
+            <div class="card text-center border-success h-100">
                 <div class="card-body">
                     <h6 class="text-muted">Monto inicial</h6>
-                    <h4 class="text-success">G. {{ caja.monto_inicial }}</h4>
+                    <h4 class="text-success">
+                        {{ caja.monto_inicial|guaranies }}
+                    </h4>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card text-center border-primary">
+            <div class="card text-center border-primary h-100">
                 <div class="card-body">
                     <h6 class="text-muted">Total ingresos</h6>
-                    <h4 class="text-primary">G. {{ total_ingresos }}</h4>
+                    <h4 class="text-primary">
+                        {{ total_ingresos|guaranies }}
+                    </h4>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card text-center border-danger">
+            <div class="card text-center border-danger h-100">
                 <div class="card-body">
                     <h6 class="text-muted">Total egresos</h6>
-                    <h4 class="text-danger">G. {{ total_egresos }}</h4>
+                    <h4 class="text-danger">
+                        {{ total_egresos|guaranies }}
+                    </h4>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card text-center border-warning">
+            <div class="card text-center h-100
+                {% if balance >= 0 %}border-warning{% else %}border-danger{% endif %}">
                 <div class="card-body">
                     <h6 class="text-muted">Balance actual</h6>
-                    <h4 class="text-warning">G. {{ balance }}</h4>
+                    <h4 class="{% if balance >= 0 %}text-warning{% else %}text-danger{% endif %}">
+                        {{ balance|guaranies }}
+                    </h4>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Acciones -->
-    <div class="d-flex gap-2 mb-4">
+    <div class="d-flex gap-2 mb-4 flex-wrap">
         <a href="{% url 'registrar_ingreso' %}" class="btn btn-primary">
             <i class="bi bi-plus-circle"></i> Registrar ingreso
         </a>
         <a href="{% url 'registrar_egreso' %}" class="btn btn-warning">
             <i class="bi bi-dash-circle"></i> Registrar egreso
         </a>
+        <a href="{% url 'registrar_pedido' %}" class="btn btn-success">
+            <i class="bi bi-bag-plus"></i> Nuevo pedido
+        </a>
         <a href="{% url 'cierre_caja' %}" class="btn btn-danger ms-auto">
             <i class="bi bi-lock-fill"></i> Cerrar caja
         </a>
     </div>
 
-    <!-- Movimientos del día -->
-    <div class="row">
+    <!-- Movimientos -->
+    <div class="row g-4">
+        <!-- Ingresos -->
         <div class="col-md-6">
-            <h5 class="mb-3">Ingresos</h5>
+            <h5 class="mb-3">
+                <i class="bi bi-arrow-down-circle text-success"></i> Ingresos
+                <span class="badge bg-success ms-1">{{ ingresos|length }}</span>
+            </h5>
             <div class="table-responsive">
                 <table class="table table-sm table-bordered">
                     <thead class="table-light">
                         <tr>
                             <th>Hora</th>
                             <th>Tipo</th>
+                            <th>Descripción</th>
                             <th>Monto</th>
                         </tr>
                     </thead>
@@ -94,27 +120,48 @@
                         <tr>
                             <td>{{ ingreso.fecha|date:"H:i" }}</td>
                             <td>{{ ingreso.get_tipo_ingreso_display }}</td>
-                            <td class="text-success">G. {{ ingreso.monto }}</td>
+                            <td class="text-muted small">
+                                {{ ingreso.descripcion|default:"—" }}
+                            </td>
+                            <td class="text-success fw-bold">
+                                {{ ingreso.monto|guaranies }}
+                            </td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="3" class="text-center text-muted">
-                                Sin ingresos
+                            <td colspan="4" class="text-center text-muted py-3">
+                                Sin ingresos aún
                             </td>
                         </tr>
                         {% endfor %}
                     </tbody>
+                    {% if ingresos %}
+                    <tfoot class="table-group-divider">
+                        <tr>
+                            <th colspan="3" class="text-end">Total:</th>
+                            <th class="text-success">{{ total_ingresos|guaranies }}</th>
+                        </tr>
+                    </tfoot>
+                    {% endif %}
                 </table>
             </div>
         </div>
+
+        <!-- Egresos -->
         <div class="col-md-6">
-            <h5 class="mb-3">Egresos</h5>
+            <h5 class="mb-3">
+                <i class="bi bi-arrow-up-circle text-danger"></i> Egresos
+                <span class="badge bg-danger ms-1">{{ egresos|length }}</span>
+            </h5>
             <div class="table-responsive">
                 <table class="table table-sm table-bordered">
                     <thead class="table-light">
                         <tr>
                             <th>Hora</th>
                             <th>Motivo</th>
+                            <th>Tipo</th>
+                            <th>Comprobante</th>
+                            <th>Proveedor</th>
                             <th>Monto</th>
                         </tr>
                     </thead>
@@ -123,16 +170,35 @@
                         <tr>
                             <td>{{ egreso.fecha|date:"H:i" }}</td>
                             <td>{{ egreso.motivo }}</td>
-                            <td class="text-danger">G. {{ egreso.monto }}</td>
+                            <td class="text-muted small">
+                                {{ egreso.get_tipo_egreso_display }}
+                            </td>
+                            <td class="text-muted small">
+                                {{ egreso.nro_comprobante|default:"—" }}
+                            </td>
+                            <td class="text-muted small">
+                                {{ egreso.proveedor.nombre|default:"—" }}
+                            </td>
+                            <td class="text-danger fw-bold">
+                                {{ egreso.monto|guaranies }}
+                            </td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="3" class="text-center text-muted">
-                                Sin egresos
+                            <td colspan="6" class="text-center text-muted py-3">
+                                Sin egresos aún
                             </td>
                         </tr>
                         {% endfor %}
                     </tbody>
+                    {% if egresos %}
+                    <tfoot class="table-group-divider">
+                        <tr>
+                            <th colspan="5" class="text-end">Total:</th>
+                            <th class="text-danger">{{ total_egresos|guaranies }}</th>
+                        </tr>
+                    </tfoot>
+                    {% endif %}
                 </table>
             </div>
         </div>
@@ -141,12 +207,13 @@
     {% else %}
     <!-- Sin caja abierta -->
     <div class="text-center py-5">
-        <i class="bi bi-cash-register"
-           style="font-size:4rem; color:#9b87f5;"></i>
+        <i class="bi bi-cash-register" style="font-size:4rem; color:#9b87f5;"></i>
         <h4 class="mt-3 text-muted">No hay caja abierta</h4>
-        <p class="text-muted">Abrí la caja para comenzar a registrar movimientos.</p>
+        <p class="text-muted">
+            Abrí la caja para comenzar a registrar movimientos.
+        </p>
         <a href="{% url 'apertura_caja' %}" class="btn btn-success mt-2">
-            <i class="bi bi-lock-fill"></i> Abrir caja
+            <i class="bi bi-unlock-fill"></i> Abrir caja
         </a>
     </div>
     {% endif %}
@@ -154,29 +221,61 @@
     <!-- Cajas anteriores -->
     {% if cajas_anteriores %}
     <hr class="mt-5">
-    <h5 class="mb-3">Cajas anteriores</h5>
+    <h5 class="mb-3">
+        Cajas anteriores
+        {% if es_admin %}
+            <span class="badge bg-secondary ms-1">Todas las cajas</span>
+        {% endif %}
+    </h5>
     <div class="table-responsive">
         <table class="table table-bordered align-middle">
             <thead class="table-dark">
                 <tr>
                     <th>#</th>
+                    {% if es_admin %}<th>Cajero</th>{% endif %}
                     <th>Apertura</th>
                     <th>Cierre</th>
-                    <th>Monto inicial</th>
-                    <th>Monto sistema</th>
-                    <th>Monto contado</th>
-                    <th>Acciones</th>
+                    <th>Inicial</th>
+                    <th>Sistema</th>
+                    <th>Contado</th>
+                    <th>Diferencia</th>
+                    <th></th>
                 </tr>
             </thead>
             <tbody>
                 {% for c in cajas_anteriores %}
                 <tr>
-                    <td>{{ c.id }}</td>
+                    <td>#{{ c.id }}</td>
+                    {% if es_admin %}
+                    <td class="small">
+                        {{ c.empleado_cajero.get_full_name|default:c.empleado_cajero.username }}
+                    </td>
+                    {% endif %}
                     <td>{{ c.fecha_apertura|date:"d/m/Y H:i" }}</td>
                     <td>{{ c.fecha_cierre|date:"d/m/Y H:i"|default:"—" }}</td>
-                    <td>G. {{ c.monto_inicial }}</td>
-                    <td>G. {{ c.monto_final_sistema|default:"—" }}</td>
-                    <td>G. {{ c.monto_final_contado|default:"—" }}</td>
+                    <td>{{ c.monto_inicial|guaranies }}</td>
+                    <td>
+                        {% if c.monto_final_sistema %}
+                            {{ c.monto_final_sistema|guaranies }}
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>
+                        {% if c.monto_final_contado %}
+                            {{ c.monto_final_contado|guaranies }}
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>
+                        {% if c.monto_final_contado and c.monto_final_sistema %}
+                            {% with dif=c.monto_final_contado|add:"-"|add:c.monto_final_sistema %}
+                            <span class="fw-bold
+                                {% if dif >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                {{ dif|guaranies }}
+                            </span>
+                            {% endwith %}
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
                     <td>
                         <a href="{% url 'resumen_caja' c.id %}"
                            class="btn btn-sm btn-outline-primary">
@@ -190,7 +289,9 @@
     </div>
     {% endif %}
 
-    <a href="{% url 'empleado_home' %}" class="btn btn-secondary mt-3">
+    <a href="{% if es_admin %}{% url 'admin_dashboard' %}
+             {% else %}{% url 'empleado_home' %}{% endif %}"
+       class="btn btn-secondary mt-3">
         <i class="bi bi-arrow-left"></i> Volver al panel
     </a>
 </div>

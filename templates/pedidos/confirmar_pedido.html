@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load filtros %}
 {% block title %}Confirmar Pedido{% endblock %}
 
 {% block content %}
@@ -8,58 +9,81 @@
 
     {% if messages %}
         {% for message in messages %}
-            <div class="alert alert-danger">{{ message }}</div>
+            <div class="alert
+                {% if message.tags == 'success' %}alert-success
+                {% else %}alert-danger{% endif %}
+                alert-dismissible fade show">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
         {% endfor %}
     {% endif %}
 
     <div class="card mb-4">
-        <div class="card-header" style="background-color: #9b87f5; color: white;">
+        <div class="card-header text-white" style="background-color:#9b87f5;">
             <h5 class="mb-0">
                 <i class="bi bi-cart-check"></i> Resumen del pedido
             </h5>
         </div>
-        <div class="card-body">
+        <div class="card-body p-0">
             <table class="table align-middle mb-0">
                 <thead class="table-light">
                     <tr>
-                        <th>Producto</th>
+                        <th class="ps-3">Producto</th>
                         <th>Tamaño</th>
-                        <th>Cantidad</th>
-                        <th>Precio</th>
+                        <th>Cant.</th>
+                        <th>Precio unit.</th>
                         <th>Subtotal</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for item in items %}
                     <tr>
-                        <td>{{ item.producto.nombre }}</td>
+                        <td class="ps-3"><strong>{{ item.producto.nombre }}</strong></td>
                         <td>{{ item.tamano.nombre|default:"—" }}</td>
                         <td>{{ item.cantidad }}</td>
-                        <td>G. {{ item.precio_unitario }}</td>
-                        <td>G. {{ item.subtotal }}</td>
+                        <td>G. {{ item.precio_unitario|guaranies }}</td>
+                        <td>G. {{ item.subtotal|guaranies }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
-                <tfoot>
+                <tfoot class="table-group-divider">
                     <tr>
-                        <th colspan="4" class="text-end">Total:</th>
-                        <th class="text-success">G. {{ total }}</th>
+                        <th colspan="4" class="text-end pe-3">Total a pagar:</th>
+                        <th class="text-success fs-5">G. {{ total|guaranies }}</th>
                     </tr>
                 </tfoot>
             </table>
         </div>
     </div>
 
-    <div class="card mb-4">
-        <div class="card-body">
-            <div class="d-flex align-items-start gap-3">
-                <i class="bi bi-info-circle-fill text-primary fs-4 mt-1"></i>
-                <div>
-                    <h6 class="mb-1">Modalidad Pick-up</h6>
-                    <p class="text-muted mb-0 small">
-                        Tu pedido será preparado y podrás retirarlo en el local.
-                        Te notificaremos cuando esté listo.
-                    </p>
+    <!-- Info del pedido -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-6">
+            <div class="card h-100 border-primary">
+                <div class="card-body d-flex align-items-start gap-3">
+                    <i class="bi bi-bag-check-fill text-primary fs-4 mt-1"></i>
+                    <div>
+                        <h6 class="mb-1">Modalidad Pick-up</h6>
+                        <p class="text-muted mb-0 small">
+                            Retirás tu pedido en el local.
+                            Te avisamos cuando esté listo.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card h-100 border-success">
+                <div class="card-body d-flex align-items-start gap-3">
+                    <i class="bi bi-cash-coin text-success fs-4 mt-1"></i>
+                    <div>
+                        <h6 class="mb-1">Pago al retirar</h6>
+                        <p class="text-muted mb-0 small">
+                            Abonás en efectivo o transferencia
+                            cuando venís a buscar tu pedido.
+                        </p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -68,14 +92,9 @@
     <form method="post">
         {% csrf_token %}
         <div class="mb-4">
-            <label class="form-label">
-                Observaciones (opcional)
-            </label>
-            <textarea name="observaciones"
-                      class="form-control"
-                      rows="3"
-                      placeholder="Ej: sin azúcar, con más granizado...">
-            </textarea>
+            <label class="form-label">Observaciones (opcional)</label>
+            <textarea name="observaciones" class="form-control" rows="3"
+                      placeholder="Ej: sin azúcar, con más granizado..."></textarea>
         </div>
 
         <div class="d-flex gap-2 justify-content-between">

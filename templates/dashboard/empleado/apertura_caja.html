@@ -7,29 +7,44 @@
 
     {% if messages %}
         {% for message in messages %}
-            <div class="alert alert-warning">{{ message }}</div>
+            <div class="alert
+                {% if message.tags == 'success' %}alert-success
+                {% elif message.tags == 'warning' %}alert-warning
+                {% else %}alert-danger{% endif %}
+                alert-dismissible fade show">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
         {% endfor %}
     {% endif %}
 
     <div class="card">
+        <div class="card-header text-white" style="background-color:#9b87f5;">
+            <h5 class="mb-0">
+                <i class="bi bi-unlock-fill"></i> Iniciar turno
+            </h5>
+        </div>
         <div class="card-body">
             <p class="text-muted mb-4">
                 Ingresá el monto inicial en caja para comenzar el turno.
+                Este monto es el efectivo físico con el que arrancás.
             </p>
             <form method="post">
                 {% csrf_token %}
                 <div class="mb-4">
-                    <label class="form-label">Monto inicial (Gs.)</label>
+                    <label class="form-label fw-bold">Monto inicial (Gs.)</label>
                     <input type="number" name="monto_inicial"
                            class="form-control form-control-lg"
-                           placeholder="0" min="0" required>
+                           placeholder="0" min="0" required autofocus>
+                    <small class="text-muted">
+                        Contá el efectivo disponible e ingresá el total.
+                    </small>
                 </div>
                 <div class="d-flex gap-2">
-                    <button type="submit" class="btn btn-success w-100">
-                        <i class="bi bi-lock-fill"></i> Abrir caja
+                    <button type="submit" class="btn btn-success w-100 btn-lg">
+                        <i class="bi bi-unlock-fill"></i> Abrir caja
                     </button>
-                    <a href="{% url 'empleado_home' %}"
-                       class="btn btn-secondary">
+                    <a href="{% url 'empleado_home' %}" class="btn btn-secondary">
                         Cancelar
                     </a>
                 </div>

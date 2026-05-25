@@ -1,17 +1,28 @@
 {% extends 'base.html' %}
+{% load filtros %}
 {% block title %}Costos y Ganancias{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4 no-print">
         <h1>Costos y Ganancias</h1>
-        <a href="{% url 'reportes' %}" class="btn btn-secondary btn-sm">
-            <i class="bi bi-arrow-left"></i> Volver
-        </a>
+        <div class="d-flex gap-2">
+            <button onclick="window.print()" class="btn btn-outline-dark btn-sm">
+                <i class="bi bi-printer"></i> Imprimir
+            </button>
+            <a href="{% url 'reportes' %}" class="btn btn-secondary btn-sm">
+                <i class="bi bi-arrow-left"></i> Volver
+            </a>
+        </div>
     </div>
 
-    <!-- Filtro por mes -->
-    <form method="get" class="card p-3 mb-4">
+    <div class="print-header" style="display:none;">
+        <h2>Heladería Wili — Costos y Ganancias</h2>
+        <hr>
+    </div>
+
+    <form method="get" class="card p-3 mb-4 no-print">
         <div class="row g-3 align-items-end">
             <div class="col-md-4">
                 <label class="form-label">Mes</label>
@@ -24,103 +35,151 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <label class="form-label">Año</label>
                 <input type="number" name="anio" class="form-control"
-                       value="{{ anio_actual }}" min="2020" max="2030">
+                       value="{{ anio_actual }}" min="2020" max="2035">
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <button type="submit" class="btn btn-primary w-100">
-                    <i class="bi bi-search"></i> Ver reporte
+                    <i class="bi bi-search"></i> Ver
                 </button>
             </div>
         </div>
     </form>
 
-    <!-- Balance -->
-    <div class="row mb-4">
+    <div class="alert alert-info py-2 no-print">
+        <i class="bi bi-info-circle"></i>
+        El <strong>costo de producción</strong> se calcula en base a los
+        insumos realmente descontados en las producciones completadas del mes,
+        usando el precio promedio de cada insumo.
+    </div>
+
+    <!-- Tarjetas -->
+    <div class="row mb-4 g-3">
         <div class="col-md-3">
-            <div class="card text-center border-success">
+            <div class="card text-center border-success h-100">
                 <div class="card-body">
-                    <h6 class="text-muted">Ventas totales</h6>
-                    <h4 class="text-success">G. {{ ventas_mes }}</h4>
+                    <h6 class="text-muted">Ventas del mes</h6>
+                    <h4 class="text-success">{{ ventas_mes|guaranies }}</h4>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card text-center border-danger">
+            <div class="card text-center border-danger h-100">
                 <div class="card-body">
-                    <h6 class="text-muted">Compras de insumos</h6>
-                    <h4 class="text-danger">G. {{ compras_mes }}</h4>
+                    <h6 class="text-muted">Costo de producción</h6>
+                    <h4 class="text-danger">{{ costo_produccion|guaranies }}</h4>
+                    <small class="text-muted">Insumos usados</small>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card text-center border-warning">
+            <div class="card text-center border-warning h-100">
                 <div class="card-body">
-                    <h6 class="text-muted">Otros egresos</h6>
-                    <h4 class="text-warning">G. {{ egresos_mes }}</h4>
+                    <h6 class="text-muted">Gastos operativos</h6>
+                    <h4 class="text-warning">{{ egresos_operativos|guaranies }}</h4>
+                    <small class="text-muted">Egresos varios</small>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card text-center
+            <div class="card text-center h-100
                 {% if ganancia >= 0 %}border-primary{% else %}border-danger{% endif %}">
                 <div class="card-body">
                     <h6 class="text-muted">Ganancia neta</h6>
                     <h4 class="{% if ganancia >= 0 %}text-primary{% else %}text-danger{% endif %}">
-                        G. {{ ganancia }}
+                        {{ ganancia|guaranies }}
                     </h4>
+                    {% if ganancia < 0 %}
+                    <small class="text-danger">
+                        <i class="bi bi-exclamation-triangle"></i> Pérdida
+                    </small>
+                    {% endif %}
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Tabla resumen -->
-    <div class="card">
+    <!-- Resumen tabla -->
+    <div class="card mb-4">
         <div class="card-header bg-dark text-white">
-            <h5 class="mb-0">Resumen del mes</h5>
+            <h5 class="mb-0">Resumen del período</h5>
         </div>
         <div class="card-body">
             <table class="table table-sm mb-0">
                 <tbody>
                     <tr>
-                        <td>Ventas totales</td>
+                        <td>Ventas del mes</td>
                         <td class="text-end text-success fw-bold">
-                            G. {{ ventas_mes }}
-                        </td>
-                        <td class="text-end text-success">100%</td>
-                    </tr>
-                    <tr>
-                        <td>Compras de insumos</td>
-                        <td class="text-end text-danger">
-                            — G. {{ compras_mes }}
-                        </td>
-                        <td class="text-end text-muted">
-                            {% if ventas_mes > 0 %}
-                                {{ compras_mes|floatformat:0 }}
-                            {% else %}0{% endif %}%
+                            {{ ventas_mes|guaranies }}
                         </td>
                     </tr>
                     <tr>
-                        <td>Otros egresos</td>
-                        <td class="text-end text-danger">
-                            — G. {{ egresos_mes }}
+                        <td>
+                            Costo de producción
+                            <small class="text-muted">
+                                (insumos usados en {{ producciones_mes|length }}
+                                lote(s))
+                            </small>
                         </td>
-                        <td class="text-end text-muted">—</td>
+                        <td class="text-end text-danger">
+                            − {{ costo_produccion|guaranies }}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Gastos operativos</td>
+                        <td class="text-end text-danger">
+                            − {{ egresos_operativos|guaranies }}
+                        </td>
                     </tr>
                     <tr class="table-dark">
                         <td><strong>Ganancia neta</strong></td>
                         <td class="text-end fw-bold
                             {% if ganancia >= 0 %}text-success
                             {% else %}text-danger{% endif %}">
-                            G. {{ ganancia }}
+                            {{ ganancia|guaranies }}
                         </td>
-                        <td class="text-end">—</td>
                     </tr>
                 </tbody>
             </table>
         </div>
     </div>
+
+    <!-- Detalle producciones del mes -->
+    {% if producciones_mes %}
+    <h5 class="mb-3">Producciones del mes</h5>
+    <div class="table-responsive">
+        <table class="table table-bordered table-sm align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th>Producto</th>
+                    <th>Cant. producida</th>
+                    <th>Fecha</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in producciones_mes %}
+                <tr>
+                    <td>{{ log.producto.nombre }}</td>
+                    <td>{{ log.cantidad_real }}</td>
+                    <td>{{ log.fecha_completada|date:"d/m/Y" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
 </div>
+
+<style>
+@media print {
+    .no-print { display: none !important; }
+    .print-header { display: block !important; }
+    .navbar, footer { display: none !important; }
+    .container { max-width:100% !important; padding:0 !important; }
+    .card { box-shadow:none !important; border:1px solid #ddd !important; }
+    .table { font-size:12px !important; }
+}
+</style>
 {% endblock %}

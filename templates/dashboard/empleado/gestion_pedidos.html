@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load filtros %}
 {% block title %}Gestión de Pedidos{% endblock %}
 
 {% block content %}
@@ -12,7 +13,11 @@
 
     {% if messages %}
         {% for message in messages %}
-            <div class="alert alert-success alert-dismissible fade show">
+            <div class="alert
+                {% if message.tags == 'success' %}alert-success
+                {% elif message.tags == 'error' %}alert-danger
+                {% else %}alert-warning{% endif %}
+                alert-dismissible fade show">
                 {{ message }}
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
@@ -27,7 +32,8 @@
         </a>
         {% for valor, nombre in estados %}
             <a href="{% url 'gestion_pedidos' %}?estado={{ valor }}"
-               class="btn btn-sm {% if estado_filtro == valor %}btn-dark{% else %}btn-outline-secondary{% endif %}">
+               class="btn btn-sm
+                {% if estado_filtro == valor %}btn-dark{% else %}btn-outline-secondary{% endif %}">
                 {{ nombre }}
             </a>
         {% endfor %}
@@ -42,19 +48,19 @@
                     <th>Fecha</th>
                     <th>Tipo</th>
                     <th>Total</th>
-                    <th>Estado</th>
+                    <th>Estado / Pago</th>
                     <th>Acciones</th>
                 </tr>
             </thead>
             <tbody>
                 {% for pedido in pedidos %}
                 <tr>
-                    <td>{{ pedido.id }}</td>
+                    <td><strong>#{{ pedido.id }}</strong></td>
                     <td>
                         {% if pedido.cliente %}
                             {{ pedido.cliente.get_full_name|default:pedido.cliente.username }}
                         {% else %}
-                            Sin cliente
+                            <span class="text-muted">Sin cliente</span>
                         {% endif %}
                     </td>
                     <td>{{ pedido.fecha_pedido|date:"d/m/Y H:i" }}</td>
@@ -65,8 +71,9 @@
                             <span class="badge bg-info text-dark">Online</span>
                         {% endif %}
                     </td>
-                    <td>G. {{ pedido.total }}</td>
+                    <td>G. {{ pedido.total|guaranies }}</td>
                     <td>
+                        <!-- Badge de estado -->
                         {% if pedido.estado == 'pendiente' %}
                             <span class="badge bg-secondary">Pendiente</span>
                         {% elif pedido.estado == 'confirmado' %}
@@ -81,27 +88,34 @@
                             <span class="badge bg-danger">Cancelado</span>
                         {% endif %}
 
+                        <!-- Botón cobrar o ver ticket -->
                         {% if pedido.estado == 'listo' and not pedido.pago_confirmado %}
                             <a href="{% url 'confirmar_pago' pedido.id %}"
-                                class="btn btn-sm btn-success">
+                               class="btn btn-sm btn-success ms-1">
                                 <i class="bi bi-cash-coin"></i> Cobrar
                             </a>
                         {% elif pedido.pago_confirmado %}
+                            <span class="badge bg-success ms-1">
+                                <i class="bi bi-check-circle"></i> Pagado
+                            </span>
                             <a href="{% url 'ticket_pedido' pedido.id %}"
-                                class="btn btn-sm btn-outline-secondary">
+                               class="btn btn-sm btn-outline-secondary ms-1">
                                 <i class="bi bi-receipt"></i> Ticket
                             </a>
                         {% endif %}
                     </td>
                     <td>
                         <a href="{% url 'detalle_pedido' pedido.id %}"
-                           class="btn btn-sm btn-outline-primary">
+                           class="btn btn-sm btn-outline-primary mb-1">
                             <i class="bi bi-eye"></i> Ver
                         </a>
+                        <!-- Cambio de estado — incluye next para redirigir bien -->
+                        {% if pedido.estado != 'entregado' and pedido.estado != 'cancelado' %}
                         <form method="post"
                               action="{% url 'actualizar_estado_pedido' pedido.id %}"
                               style="display:inline;">
                             {% csrf_token %}
+                            <input type="hidden" name="next" value="gestion_pedidos">
                             <select name="estado"
                                     class="form-select form-select-sm d-inline-block"
                                     style="width:auto;"
@@ -114,12 +128,13 @@
                                 {% endfor %}
                             </select>
                         </form>
+                        {% endif %}
                     </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="7" class="text-center text-muted">
-                        No hay pedidos registrados.
+                    <td colspan="7" class="text-center text-muted py-4">
+                        <i class="bi bi-inbox"></i> No hay pedidos registrados.
                     </td>
                 </tr>
                 {% endfor %}

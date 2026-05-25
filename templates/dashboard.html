@@ -1,63 +1,99 @@
 {% extends 'base.html' %}
 {% load static %}
-{% block title %}Heladería Wili{% endblock %}
+{% load filtros %}
+{% block title %}Heladería Wili - Helados Artesanales{% endblock %}
 
 {% block content %}
 
-<!-- Hero Section -->
+<!-- Hero -->
 <section class="hero-section">
     <div class="container">
         <div class="row align-items-center">
             <div class="col-lg-6">
-                <h1 class="display-4 fw-bold">Los Mejores Helados Artesanales</h1>
-                <p class="lead">Disfruta de nuestros deliciosos helados elaborados con ingredientes naturales y mucho amor desde 1997.</p>
-                <a href="#categorias" class="btn btn-light btn-lg mt-3">Ver Productos</a>
-            </div>
-            <div class="col-lg-6">
-                <div id="heroCarousel" class="carousel slide" data-bs-ride="carousel">
-    <div class="carousel-indicators">
-        {% for categoria in categorias %}
-        <button type="button"
-                data-bs-target="#heroCarousel"
-                data-bs-slide-to="{{ forloop.counter0 }}"
-                {% if forloop.first %}class="active"{% endif %}>
-        </button>
-        {% endfor %}
-    </div>
-    <div class="carousel-inner rounded-3">
-        {% for categoria in categorias %}
-        <div class="carousel-item {% if forloop.first %}active{% endif %}">
-            {% if categoria.imagen %}
-                <img src="{{ categoria.imagen.url }}"
-                     class="d-block w-100"
-                     alt="{{ categoria.nombre }}"
-                     style="height:350px; object-fit:cover;">
-            {% else %}
-                <div style="height:350px;
-                            background:linear-gradient(135deg,#9b87f5,#7b68ee);
-                            display:flex; align-items:center;
-                            justify-content:center;">
-                    <h3 class="text-white">{{ categoria.nombre }}</h3>
+                <span class="badge mb-3 px-3 py-2"
+                      style="background:rgba(255,255,255,0.2);
+                             font-size:13px; border-radius:20px;">
+                    🍦 Desde 1997
+                </span>
+                <h1 class="display-4 fw-bold mb-3">
+                    Los Mejores Helados Artesanales
+                </h1>
+                <p class="lead opacity-90 mb-4">
+                    Elaborados con ingredientes 100% naturales,
+                    con sabor y tradición familiar.
+                </p>
+                <div class="d-flex gap-3 flex-wrap">
+                    <a href="#categorias" class="btn btn-light btn-lg px-4">
+                        <i class="bi bi-grid me-2"></i>Ver Productos
+                    </a>
+                    {% if user.is_authenticated %}
+                    <a href="{% url 'mis_pedidos' %}"
+                       class="btn btn-outline-light btn-lg px-4">
+                        <i class="bi bi-bag me-2"></i>Mis Pedidos
+                    </a>
+                    {% endif %}
                 </div>
-            {% endif %}
-            <div class="carousel-caption"
-                 style="background:rgba(0,0,0,0.5);
-                        border-radius:8px; padding:8px 16px;
-                        bottom:20px;">
-                <h5 class="mb-0">{{ categoria.nombre }}</h5>
             </div>
-        </div>
-        {% endfor %}
-    </div>
-    <button class="carousel-control-prev" type="button"
-            data-bs-target="#heroCarousel" data-bs-slide="prev">
-        <span class="carousel-control-prev-icon"></span>
-    </button>
-    <button class="carousel-control-next" type="button"
-            data-bs-target="#heroCarousel" data-bs-slide="next">
-        <span class="carousel-control-next-icon"></span>
-    </button>
-</div>
+            <div class="col-lg-6 mt-4 mt-lg-0">
+                <div id="heroCarousel" class="carousel slide"
+                     data-bs-ride="carousel" data-bs-interval="4000">
+                    <div class="carousel-indicators">
+                        {% for categoria in categorias %}
+                        <button type="button"
+                                data-bs-target="#heroCarousel"
+                                data-bs-slide-to="{{ forloop.counter0 }}"
+                                {% if forloop.first %}class="active"
+                                {% endif %}></button>
+                        {% endfor %}
+                    </div>
+                    <div class="carousel-inner rounded-4"
+                         style="box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+                        {% for categoria in categorias %}
+                        <div class="carousel-item
+                            {% if forloop.first %}active{% endif %}">
+                            {% if categoria.imagen %}
+                                <img src="{{ categoria.imagen.url }}"
+                                     class="d-block w-100"
+                                     alt="{{ categoria.nombre }}"
+                                     style="height:380px; object-fit:cover;">
+                            {% else %}
+                                <div style="height:380px;
+                                            background:rgba(255,255,255,0.15);
+                                            display:flex;
+                                            align-items:center;
+                                            justify-content:center;">
+                                    <h3 class="text-white">
+                                        {{ categoria.nombre }}
+                                    </h3>
+                                </div>
+                            {% endif %}
+                            <div class="carousel-caption"
+                                 style="background:rgba(0,0,0,0.45);
+                                        border-radius:10px;
+                                        padding:10px 18px;
+                                        bottom:20px; left:15px;
+                                        right:15px; text-align:left;">
+                                <h5 class="mb-0 fw-bold">
+                                    {{ categoria.nombre }}
+                                </h5>
+                                <small class="opacity-75">
+                                    {{ categoria.descripcion|truncatechars:50 }}
+                                </small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <button class="carousel-control-prev" type="button"
+                            data-bs-target="#heroCarousel"
+                            data-bs-slide="prev">
+                        <span class="carousel-control-prev-icon"></span>
+                    </button>
+                    <button class="carousel-control-next" type="button"
+                            data-bs-target="#heroCarousel"
+                            data-bs-slide="next">
+                        <span class="carousel-control-next-icon"></span>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -67,26 +103,44 @@
 <section id="categorias" class="py-5">
     <div class="container">
         <h2 class="section-title">Nuestras Categorías</h2>
-        <div class="row">
+        <div class="row g-4">
             {% for categoria in categorias %}
             <div class="col-md-4 col-sm-6">
-                <a href="{% url 'productos_categoria' categoria.slug %}" class="text-decoration-none">
-                    <div class="category-card">
+                <a href="{% url 'productos_categoria' categoria.slug %}"
+                   class="text-decoration-none">
+                    <div class="category-card"
+                         style="border-radius:16px; overflow:hidden;
+                                transition:transform .25s ease,
+                                box-shadow .25s ease;">
                         {% if categoria.imagen %}
-                            <img src="{{ categoria.imagen.url }}" class="category-img w-100" alt="{{ categoria.nombre }}">
+                            <img src="{{ categoria.imagen.url }}"
+                                 class="category-img w-100"
+                                 alt="{{ categoria.nombre }}"
+                                 style="height:210px; object-fit:cover;">
                         {% else %}
-                            <img src="{% static 'images/Productos/default.jpg' %}" class="category-img w-100" alt="{{ categoria.nombre }}">
+                            <div class="d-flex align-items-center
+                                        justify-content-center"
+                                 style="height:210px;
+                                        background:linear-gradient(
+                                            135deg,#9b87f5,#7b68ee);">
+                                <i class="bi bi-image text-white"
+                                   style="font-size:3rem;"></i>
+                            </div>
                         {% endif %}
-                        <div class="category-card-body">
-                            <h5 class="card-title">{{ categoria.nombre }}</h5>
-                            <p class="card-text">{{ categoria.descripcion|truncatechars:50 }}</p>
+                        <div class="category-card-body bg-white p-3">
+                            <h5 class="card-title fw-bold mb-1">
+                                {{ categoria.nombre }}
+                            </h5>
+                            <p class="card-text text-muted small mb-0">
+                                {{ categoria.descripcion|truncatechars:55 }}
+                            </p>
                         </div>
                     </div>
                 </a>
             </div>
             {% empty %}
-            <div class="col-12 text-center">
-                <p>No hay categorías disponibles.</p>
+            <div class="col-12 text-center text-muted">
+                No hay categorías disponibles.
             </div>
             {% endfor %}
         </div>
@@ -94,38 +148,81 @@
 </section>
 
 <!-- Productos Destacados -->
-<section id="productos-destacados" class="py-5 bg-light">
+<section id="productos-destacados" class="py-5"
+         style="background:#f9f7ff;">
     <div class="container">
         <h2 class="section-title">Productos Destacados</h2>
-        <div class="row">
+        <div class="row g-4">
             {% for producto in productos_destacados %}
             <div class="col-md-4">
-                <div class="product-card">
+                <div class="card h-100 border-0"
+                     style="border-radius:16px;
+                            box-shadow:0 4px 20px rgba(155,135,245,.15);
+                            transition:transform .25s ease;">
                     {% if producto.imagen %}
-                        <img src="{{ producto.imagen.url }}" class="product-img w-100" alt="{{ producto.nombre }}">
+                        <img src="{{ producto.imagen.url }}"
+                             class="card-img-top"
+                             alt="{{ producto.nombre }}"
+                             style="height:220px; object-fit:cover;
+                                    border-radius:16px 16px 0 0;">
                     {% else %}
-                        <img src="{% static 'images/Productos/default.jpg' %}" class="product-img w-100" alt="{{ producto.nombre }}">
+                        <div class="d-flex align-items-center
+                                    justify-content-center"
+                             style="height:220px;
+                                    background:linear-gradient(
+                                        135deg,#f0ecff,#e6e1ff);
+                                    border-radius:16px 16px 0 0;">
+                            <i class="bi bi-cup-straw"
+                               style="font-size:3rem; color:#9b87f5;"></i>
+                        </div>
                     {% endif %}
-                    <div class="card-body">
-                        <h5 class="card-title">{{ producto.nombre }}</h5>
-                        <p class="card-text">{{ producto.descripcion|truncatechars:50 }}</p>
-                        <div class="mt-3">
-                            {% for pt in producto.productotamano_set.all %}
-                                {% if pt.precio > 0 %}
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <span>{{ pt.tamano.nombre }}</span>
-                                    <span class="fw-bold text-primary">G. {{ pt.precio }}</span>
-                                    <button class="btn btn-primary btn-sm add-to-cart"
-                                            data-producto-id="{{ producto.id }}"
-                                            data-tamano-id="{{ pt.tamano.id }}"
-                                            data-url="{% url 'agregar_carrito' %}">
-                                        Agregar
-                                    </button>
+                    <div class="card-body d-flex flex-column p-4">
+                        <h5 class="card-title fw-bold">
+                            {{ producto.nombre }}
+                        </h5>
+                        <p class="card-text text-muted small">
+                            {{ producto.descripcion|truncatechars:65 }}
+                        </p>
+                        <div class="mt-auto">
+                            {% for pt in producto.tamanos %}
+                                {% if not pt.tamano.solo_produccion %}
+                                <div class="d-flex justify-content-between
+                                            align-items-center mb-1">
+                                    <span class="text-muted small">
+                                        {{ pt.tamano.nombre }}
+                                    </span>
+                                    <strong class="text-primary">
+                                        {{ pt.precio|guaranies }}
+                                    </strong>
                                 </div>
                                 {% endif %}
                             {% empty %}
-                                <p class="text-muted">Sin presentaciones disponibles</p>
+                                <p class="text-muted small">
+                                    Sin presentaciones
+                                </p>
                             {% endfor %}
+
+                            {% if producto.stock <= 0 %}
+                                <div class="alert alert-danger py-1
+                                            text-center mt-3 mb-0
+                                            rounded-3">
+                                    <small>
+                                        <i class="bi bi-x-circle"></i>
+                                        Sin stock
+                                    </small>
+                                </div>
+                            {% else %}
+                                <a href="{% url 'productos_categoria' producto.categoria.slug %}"
+                                   class="btn btn-primary w-100 mt-3 rounded-3">
+                                    <i class="bi bi-cart-plus me-1"></i>
+                                    Ver y pedir
+                                    {% if producto.stock <= 5 %}
+                                        <span class="badge bg-danger ms-1">
+                                            {{ producto.stock }} restantes
+                                        </span>
+                                    {% endif %}
+                                </a>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -135,29 +232,48 @@
     </div>
 </section>
 
-<!-- Sabores -->
+<!-- Sabores — solo helados por kilo -->
 <section id="sabores" class="py-5">
     <div class="container">
         <h2 class="section-title">Nuestros Sabores</h2>
-        <div class="row">
+        <p class="text-center text-muted mb-4">
+            Disponibles para helados por porción y kilo
+        </p>
+        <div class="row g-3 justify-content-center">
             {% for sabor in sabores %}
-            <div class="col-lg-4 col-md-6">
-                <div class="flavor-card">
+            <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+                <div class="card border-0 text-center h-100"
+                     style="border-radius:14px;
+                            box-shadow:0 3px 15px rgba(155,135,245,.12);
+                            transition:transform .2s ease;">
                     {% if sabor.imagen %}
-                        <img src="{{ sabor.imagen.url }}" class="flavor-img" alt="{{ sabor.nombre }}">
+                        <img src="{{ sabor.imagen.url }}"
+                             alt="{{ sabor.nombre }}"
+                             style="width:100%; height:100px;
+                                    object-fit:cover;
+                                    border-radius:14px 14px 0 0;">
                     {% else %}
-                        <img src="{% static 'images/Sabores/default.jpg' %}" class="flavor-img" alt="{{ sabor.nombre }}">
-                    {% endif %}
-                    <div class="flavor-card-body">
-                        <div class="flavor-name">{{ sabor.nombre }}</div>
-                        <div class="flavor-description">
-                            {{ sabor.descripcion|truncatechars:80 }}
+                        <div class="d-flex align-items-center
+                                    justify-content-center"
+                             style="height:100px;
+                                    background:linear-gradient(
+                                        135deg,#f0ecff,#e6e1ff);
+                                    border-radius:14px 14px 0 0;">
+                            <i class="bi bi-cup-straw"
+                               style="font-size:2rem; color:#9b87f5;"></i>
                         </div>
-                        {% if sabor.precio_extra > 0 %}
-                            <div class="mt-2 text-primary">+ G. {{ sabor.precio_extra }}</div>
-                        {% endif %}
+                    {% endif %}
+                    <div class="card-body p-2">
+                        <small class="fw-bold d-block"
+                               style="font-size:12px; color:#5a5a5a;">
+                            {{ sabor.nombre }}
+                        </small>
                     </div>
                 </div>
+            </div>
+            {% empty %}
+            <div class="col-12 text-center text-muted">
+                No hay sabores disponibles.
             </div>
             {% endfor %}
         </div>
@@ -168,28 +284,64 @@
 <section id="contacto" class="contact-section">
     <div class="container">
         <h2 class="section-title">Visítanos</h2>
-        <div class="row">
-            <div class="col-lg-6 mb-4">
-                <div class="bg-white p-4 rounded-3 shadow-sm h-100">
-                    <h4 class="mb-4">Información de Contacto</h4>
-                    <p><i class="bi bi-geo-alt-fill me-2 text-primary"></i> San José de los Arroyos, Paraguay</p>
-                    <p><i class="bi bi-telephone-fill me-2 text-primary"></i> (0984) 236-667</p>
-                    <p><i class="bi bi-envelope-fill me-2 text-primary"></i> infohwili@gmail.com</p>
-                    <p><i class="bi bi-clock-fill me-2 text-primary"></i> Lunes a Viernes: 9:00 - 20:00</p>
-                    <p><i class="bi bi-clock-fill me-2 text-primary"></i> Sábados: 9:00 - 22:00</p>
-                    <p><i class="bi bi-clock-fill me-2 text-primary"></i> Domingos: 10:00 - 21:00</p>
-                    <div class="mt-4">
-                        <a href="#" class="social-icon text-white"><i class="bi bi-facebook"></i></a>
-                        <a href="#" class="social-icon text-white"><i class="bi bi-instagram"></i></a>
-                        <a href="#" class="social-icon text-white"><i class="bi bi-whatsapp"></i></a>
+        <div class="row g-4">
+            <div class="col-lg-6">
+                <div class="bg-white p-4 rounded-4 shadow-sm h-100">
+                    <h4 class="mb-4 fw-bold">Información de Contacto</h4>
+                    <p>
+                        <i class="bi bi-geo-alt-fill me-2 text-primary"></i>
+                        San José de los Arroyos, Paraguay
+                    </p>
+                    <p>
+                        <i class="bi bi-telephone-fill me-2 text-primary"></i>
+                        (0984) 236-667
+                    </p>
+                    <p>
+                        <i class="bi bi-envelope-fill me-2 text-primary"></i>
+                        infohwili@gmail.com
+                    </p>
+                    <p>
+                        <i class="bi bi-clock-fill me-2 text-primary"></i>
+                        Lunes a Viernes: 9:00 - 20:00
+                    </p>
+                    <p>
+                        <i class="bi bi-clock-fill me-2 text-primary"></i>
+                        Sábados: 9:00 - 22:00
+                    </p>
+                    <p>
+                        <i class="bi bi-clock-fill me-2 text-primary"></i>
+                        Domingos: 10:00 - 21:00
+                    </p>
+                    <div class="mt-4 d-flex gap-2">
+                        <a href="https://www.facebook.com/heladeriawili"
+                           target="_blank"
+                           class="social-icon text-white"
+                           title="Facebook">
+                            <i class="bi bi-facebook"></i>
+                        </a>
+                        <a href="https://www.instagram.com/heladeriawili"
+                           target="_blank"
+                           class="social-icon text-white"
+                           title="Instagram">
+                            <i class="bi bi-instagram"></i>
+                        </a>
+                        <a href="https://wa.me/595984236667"
+                           target="_blank"
+                           class="social-icon text-white"
+                           title="WhatsApp">
+                            <i class="bi bi-whatsapp"></i>
+                        </a>
                     </div>
                 </div>
             </div>
             <div class="col-lg-6">
-                <div class="map-container h-100">
-                    <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3601.135831357299!2d-56.73173468497806!3d-25.48196648375564!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x945eba58b2dcee7b%3A0x1a5f8e9b3b0e3b1a!2sSan%20Jos%C3%A9%20de%20los%20Arroyos%2C%20Paraguay!5e0!3m2!1ses!2ses!4v1620000000000!5m2!1ses!2ses"
-                            width="100%" height="300" style="border:0;"
-                            allowfullscreen="" loading="lazy">
+                <div class="map-container h-100 rounded-4 overflow-hidden"
+                     style="min-height:300px;">
+                    <iframe
+                        src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3601.135831357299!2d-56.73173468497806!3d-25.48196648375564!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x945eba58b2dcee7b%3A0x1a5f8e9b3b0e3b1a!2sSan%20Jos%C3%A9%20de%20los%20Arroyos%2C%20Paraguay!5e0!3m2!1ses!2ses!4v1620000000000!5m2!1ses!2ses"
+                        width="100%" height="100%"
+                        style="border:0; min-height:300px;"
+                        allowfullscreen="" loading="lazy">
                     </iframe>
                 </div>
             </div>
@@ -197,100 +349,51 @@
     </div>
 </section>
 
-<!-- Ingredientes -->
-<div class="container mt-5 mb-5">
-    <div class="row">
-        <div class="col-md-6">
-            <h3 class="mb-4">Nuestros Ingredientes</h3>
-            <p>Todos nuestros helados son elaborados artesanalmente con ingredientes 100% naturales:</p>
-            <ul class="list-unstyled">
-                <li class="mb-2"><i class="bi bi-check-circle-fill text-primary me-2"></i> Leche fresca de la mejor calidad</li>
-                <li class="mb-2"><i class="bi bi-check-circle-fill text-primary me-2"></i> Frutas naturales de temporada</li>
-                <li class="mb-2"><i class="bi bi-check-circle-fill text-primary me-2"></i> Cacao premium para nuestros chocolates</li>
-                <li class="mb-2"><i class="bi bi-check-circle-fill text-primary me-2"></i> Vainilla Bourbon natural</li>
-                <li class="mb-2"><i class="bi bi-check-circle-fill text-primary me-2"></i> Sin conservantes ni colorantes artificiales</li>
-            </ul>
-        </div>
-        <div class="col-md-6">
-            <h3 class="mb-4">¿Sabías que?</h3>
-            <p>Nuestros helados mantienen la tradición familiar desde 1997, utilizando recetas que han pasado de generación en generación.</p>
-            <p>Cada sabor es cuidadosamente desarrollado para ofrecer una experiencia única a nuestros clientes.</p>
-            <p>¡Puedes combinar hasta 3 sabores diferentes en nuestros conos y potes!</p>
+<!-- Datos rápidos -->
+<section class="py-5" style="background:#f9f7ff;">
+    <div class="container">
+        <div class="row g-4 text-center">
+            <div class="col-md-4">
+                <div class="card border-0 h-100 py-4"
+                     style="border-radius:16px;
+                            box-shadow:0 4px 15px rgba(155,135,245,.1);">
+                    <i class="bi bi-award-fill mb-3"
+                       style="font-size:2.5rem; color:#9b87f5;"></i>
+                    <h5 class="fw-bold">+25 años de tradición</h5>
+                    <p class="text-muted small px-3">
+                        Desde 1997 haciendo helados artesanales con
+                        recetas familiares.
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-0 h-100 py-4"
+                     style="border-radius:16px;
+                            box-shadow:0 4px 15px rgba(155,135,245,.1);">
+                    <i class="bi bi-droplet-fill mb-3"
+                       style="font-size:2.5rem; color:#1D9E75;"></i>
+                    <h5 class="fw-bold">100% Natural</h5>
+                    <p class="text-muted small px-3">
+                        Sin conservantes ni colorantes artificiales.
+                        Solo ingredientes frescos.
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-0 h-100 py-4"
+                     style="border-radius:16px;
+                            box-shadow:0 4px 15px rgba(155,135,245,.1);">
+                    <i class="bi bi-palette2 mb-3"
+                       style="font-size:2.5rem; color:#EF9F27;"></i>
+                    <h5 class="fw-bold">Múltiples sabores</h5>
+                    <p class="text-muted small px-3">
+                        Combiná hasta {{ sabores|length }} sabores en
+                        tus conos y potes.
+                    </p>
+                </div>
+            </div>
         </div>
     </div>
-</div>
+</section>
 
-<!-- Notificación carrito -->
-<div class="notification alert alert-success alert-dismissible fade show" role="alert">
-    <i class="bi bi-check-circle-fill me-2"></i>
-    <span id="notification-text"></span>
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-</div>
-
-{% endblock %}
-
-{% block extra_js %}
-<script>
-function mostrarNotificacion(mensaje, tipo = 'success') {
-    const notification = document.querySelector('.notification');
-    const notificationText = document.getElementById('notification-text');
-    notificationText.textContent = mensaje;
-    notification.classList.remove('alert-success', 'alert-danger');
-    notification.classList.add(`alert-${tipo}`);
-    notification.style.display = 'block';
-    setTimeout(() => {
-        notification.style.display = 'none';
-    }, 3000);
-}
-
-document.querySelectorAll('.add-to-cart').forEach(button => {
-    button.addEventListener('click', function(e) {
-        e.preventDefault();
-        const productoId = this.dataset.productoId;
-        const tamanoId = this.dataset.tamanoId;
-        const url = this.dataset.url;
-
-        if (!productoId || !tamanoId) {
-            mostrarNotificacion('Error: Datos incompletos', 'danger');
-            return;
-        }
-
-        fetch(url, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': '{{ csrf_token }}',
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams({
-                'producto_id': productoId,
-                'tamano_id': tamanoId,
-                'cantidad': 1
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                mostrarNotificacion('Producto agregado al carrito');
-            } else {
-                mostrarNotificacion('Error: ' + data.error, 'danger');
-            }
-        })
-        .catch(error => {
-            mostrarNotificacion('Error de conexión', 'danger');
-        });
-    });
-});
-
-document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-    anchor.addEventListener('click', function(e) {
-        e.preventDefault();
-        const targetId = this.getAttribute('href');
-        if (targetId === '#') return;
-        const targetElement = document.querySelector(targetId);
-        if (targetElement) {
-            targetElement.scrollIntoView({ behavior: 'smooth' });
-        }
-    });
-});
-</script>
 {% endblock %}

@@ -1,11 +1,24 @@
 {% extends 'base.html' %}
 {% load static %}
-
+{% load filtros %}
 {% block title %}Carrito de compras{% endblock %}
 
 {% block content %}
 <div class="container my-5">
     <h1 class="mb-4">Tu carrito</h1>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert
+                {% if message.tags == 'success' %}alert-success
+                {% else %}alert-danger{% endif %}
+                alert-dismissible fade show">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
     {% if items %}
         <div class="table-responsive">
             <table class="table table-bordered align-middle">
@@ -14,6 +27,7 @@
                         <th>Producto</th>
                         <th>Tamaño</th>
                         <th>Sabores</th>
+                        <th>Agregados</th>
                         <th>Cantidad</th>
                         <th>Precio unitario</th>
                         <th>Subtotal</th>
@@ -23,20 +37,31 @@
                 <tbody>
                     {% for item in items %}
                     <tr>
-                        <td>{{ item.producto.nombre }}</td>
-                        <td>{{ item.tamano.nombre }}</td>
+                        <td><strong>{{ item.producto.nombre }}</strong></td>
+                        <td>{{ item.tamano.nombre|default:"—" }}</td>
                         <td>
                             {% for sabor in item.sabores.all %}
-                                {{ sabor.nombre }}{% if not forloop.last %}, {% endif %}
+                                <span class="badge bg-primary">
+                                    {{ sabor.nombre }}
+                                </span>
+                            {% empty %}
+                                <span class="text-muted">—</span>
+                            {% endfor %}
+                        </td>
+                        <td>
+                            {% for addon in item.addons.all %}
+                                <span class="badge bg-secondary">{{ addon.nombre }}</span>
+                            {% empty %}
+                                <span class="text-muted">—</span>
                             {% endfor %}
                         </td>
                         <td>{{ item.cantidad }}</td>
-                        <td>G. {{ item.precio_unitario|floatformat:0 }}</td>
-                        <td>G. {{ item.subtotal|floatformat:0 }}</td>
+                        <td> {{ item.precio_unitario|guaranies }}</td>
+                        <td> {{ item.subtotal|guaranies }}</td>
                         <td>
                             <button class="btn btn-danger btn-sm btn-remove"
                                     data-item-id="{{ item.id }}">
-                                Eliminar
+                                <i class="bi bi-trash"></i> Eliminar
                             </button>
                         </td>
                     </tr>
@@ -44,8 +69,8 @@
                 </tbody>
                 <tfoot class="table-group-divider">
                     <tr>
-                        <th colspan="5" class="text-end">Total:</th>
-                        <th>G. {{ total|floatformat:0 }}</th>
+                        <th colspan="6" class="text-end">Total:</th>
+                        <th>{{ total|guaranies }}</th>
                         <th></th>
                     </tr>
                 </tfoot>
@@ -56,12 +81,13 @@
             <a href="{% url 'menu' %}" class="btn btn-secondary">
                 <i class="bi bi-arrow-left"></i> Seguir comprando
             </a>
-            <a href="{% url 'realizar_pedido_online' %}" class="btn btn-success">
+            <a href="{% url 'realizar_pedido_online' %}" class="btn btn-success btn-lg">
                 <i class="bi bi-check-circle"></i> Finalizar pedido
             </a>
         </div>
     {% else %}
-        <div class="alert alert-info text-center">
+        <div class="alert alert-info text-center py-5">
+            <i class="bi bi-cart-x fs-1 d-block mb-3"></i>
             <p class="mb-3">El carrito está vacío.</p>
             <a href="{% url 'menu' %}" class="btn btn-primary">
                 <i class="bi bi-shop"></i> Ir al menú
@@ -73,26 +99,24 @@
 
 {% block extra_js %}
 <script>
-    document.querySelectorAll('.btn-remove').forEach(button => {
-        button.addEventListener('click', function() {
-            const itemId = this.dataset.itemId;
-            if (confirm('¿Eliminar este producto del carrito?')) {
-                fetch(`/eliminar-carrito/${itemId}/`, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRFToken': '{{ csrf_token }}',
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        location.reload();
-                    } else {
-                        alert('Error al eliminar');
-                    }
-                });
-            }
-        });
+document.querySelectorAll('.btn-remove').forEach(function(button) {
+    button.addEventListener('click', function() {
+        const itemId = this.dataset.itemId;
+        if (confirm('¿Eliminar este producto del carrito?')) {
+            fetch(`/eliminar-carrito/${itemId}/`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error al eliminar el producto.');
+                }
+            });
+        }
     });
+});
 </script>
 {% endblock %}

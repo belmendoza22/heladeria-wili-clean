@@ -8,7 +8,9 @@ from django.utils.decorators import method_decorator
 from django.db.models import F, Sum, Count
 from django.contrib.auth.models import User
 from decimal import Decimal
+from django.contrib.messages import get_messages
 from django.utils import timezone
+from django.db.models import Q as DQ
 import datetime
 from .decorators import rol_requerido, admin_required, empleado_required
 from django.db import models
@@ -19,7 +21,8 @@ from .models import (
     Producto, Tamano, ProductoTamano, Rol, Permiso, 
     RolPermiso, Profile, UnidadMedida, Insumo,
     Proveedor, Receta, Compra, DetalleCompra, Pedido,
-    DetallePedido, Caja, Ingreso, Egreso, Promocion)
+    DetallePedido, Caja, Ingreso, Egreso, Promocion,
+    ProduccionLog)
 
 # Vistas de autenticación
 def registro_view(request): 
@@ -37,8 +40,6 @@ def registro_view(request):
     return render(request, 'registration/registro.html', {'form': form})
 
 def login_view(request):
-    # Limpiar mensajes anteriores
-    from django.contrib.messages import get_messages
     storage = get_messages(request)
     list(storage)
 
@@ -78,81 +79,127 @@ class CategoriaListView(ListView):
 
 @login_required
 def menu(request):
-    categorias = Categoria.objects.all()
-    sabores = Sabor.objects.filter(activo=True)
+    categorias           = Categoria.objects.all()
+    categoria_kilo = Categoria.objects.filter(nombre__icontains='kilo').first()
+    if categoria_kilo:
+        sabores = Sabor.objects.filter(activo=True, categoria=categoria_kilo)
+    else:
+        sabores = Sabor.objects.filter(activo=True)
     productos_destacados = Producto.objects.filter(destacado=True)[:6]
-    
+
     for producto in productos_destacados:
-        producto.tamanos = ProductoTamano.objects.filter(producto=producto).select_related('tamano')
-    
+        producto.tamanos = ProductoTamano.objects.filter(
+            producto=producto
+        ).select_related('tamano')
+
     carrito_count = 0
     if request.user.is_authenticated:
         carrito = Carrito.objects.filter(user=request.user).first()
         if carrito:
             carrito_count = carrito.items.count()
-    
+
     context = {
-        'categorias': categorias,
-        'sabores': sabores,
+        'categorias':           categorias,
+        'sabores':              sabores,
         'productos_destacados': productos_destacados,
-        'carrito_count': carrito_count,
+        'carrito_count':        carrito_count,
     }
     return render(request, 'menu.html', context)
 
 @login_required
 def productos_categoria(request, categoria_slug):
     categoria = get_object_or_404(Categoria, slug=categoria_slug)
+    busqueda  = request.GET.get('q', '')
+
+    es_admin = (
+        request.user.is_authenticated and
+        hasattr(request.user, 'profile') and
+        request.user.profile.rol and
+        request.user.profile.rol.nombre == 'Administrador'
+    )
+
     productos = Producto.objects.filter(categoria=categoria)
-    tamanos = Tamano.objects.filter(activo=True)
-    sabores = Sabor.objects.filter(categoria=categoria, activo=True)
-
-    productos_con_precios = []
-    for producto in productos:
-        precios = ProductoTamano.objects.filter(
-            producto=producto
-        ).select_related('tamano')
-        productos_con_precios.append({
-            'producto': producto,
-            'precios': precios,
-        })
-
-    context = {
-        'categoria': categoria,
-        'productos_con_precios': productos_con_precios,
-        'tamanos': tamanos,
-        'sabores': sabores,
-    }
-    return render(request, 'productos_categoria.html', context)
-
-@login_required
-def productos_categoria(request, categoria_slug):
-    categoria = get_object_or_404(Categoria, slug=categoria_slug)
-    productos = Producto.objects.filter(categoria=categoria)
-    tamanos = Tamano.objects.filter(activo=True)
-    sabores = Sabor.objects.filter(categoria=categoria, activo=True)
-
-    # Filtro por búsqueda dentro de la categoría
-    busqueda = request.GET.get('q', '')
     if busqueda:
         productos = productos.filter(nombre__icontains=busqueda)
 
+    sabores_qs = Sabor.objects.filter(activo=True).filter(DQ(categoria=categoria) | DQ(categorias_extra=categoria)
+    ).distinct().select_related('insumo_stock', 'insumo_stock__unidad_medida', 'subcategoria').order_by('subcategoria__nombre', 'nombre')
+
+    sabores = []
+    for sabor in sabores_qs:
+        disponible = True
+        if not es_admin and sabor.insumo_stock:
+            disponible = float(sabor.insumo_stock.stock_actual) > 0
+        sabores.append({
+            'id':            sabor.id,
+            'nombre':        sabor.nombre,
+            'imagen':        sabor.imagen.url if sabor.imagen else None,
+            'descripcion':   sabor.descripcion,
+            'disponible':    disponible,
+            'subcategoria':  sabor.subcategoria.nombre if sabor.subcategoria else None,
+        })
+
+
+    from django.utils import timezone as tz
+    from decimal import Decimal
+    hoy = tz.now().date()
+
     productos_con_precios = []
     for producto in productos:
-        precios = ProductoTamano.objects.filter(
+        precios_qs = ProductoTamano.objects.filter(
             producto=producto
         ).select_related('tamano')
+
+        if not es_admin:
+            precios_qs = precios_qs.filter(tamano__solo_produccion=False)
+
+        if not es_admin and not precios_qs.exists():
+            continue
+
+        promo = producto.promociones_aplicadas.filter(
+            activo=True,
+            fecha_inicio__lte=hoy,
+            fecha_fin__gte=hoy,
+        ).first()
+
+        precios_con_promo = []
+        for pt in precios_qs:
+            precio_original = pt.precio
+            precio_final    = precio_original
+            descuento_texto = None
+
+            if promo:
+                if promo.tipo_descuento == 'porcentaje':
+                    descuento       = precio_original * Decimal(str(promo.valor_descuento)) / 100
+                    precio_final    = precio_original - descuento
+                    descuento_texto = f'{int(promo.valor_descuento)}% OFF'
+                elif promo.tipo_descuento == 'monto_fijo':
+                    precio_final    = max(Decimal('0'), precio_original - promo.valor_descuento)
+                    descuento_texto = f'G. {int(promo.valor_descuento):,} OFF'.replace(',', '.')
+
+            precios_con_promo.append({
+                'tamano':          pt.tamano,
+                'tamano_id':       pt.tamano.id,
+                'precio_original': precio_original,
+                'precio_final':    precio_final,
+                'descuento_texto': descuento_texto,
+                'promo_nombre':    promo.nombre if promo else None,
+                'max_sabores':     pt.tamano.max_sabores,
+            })
+
         productos_con_precios.append({
             'producto': producto,
-            'precios': precios,
+            'precios':  precios_con_promo,
+            'promo':    promo,
         })
 
     context = {
-        'categoria': categoria,
+        'categoria':             categoria,
         'productos_con_precios': productos_con_precios,
-        'tamanos': tamanos,
-        'sabores': sabores,
-        'busqueda': busqueda,
-        'categorias': Categoria.objects.all(),
+        'sabores':               sabores,
+        'busqueda':              busqueda,
+        'categorias':            Categoria.objects.all(),
+        'addons':                Addon.objects.filter(activo=True).filter(models.Q(categorias__isnull=True)|models.Q(categorias=categoria)).distinct().select_related('insumo'),
     }
     return render(request, 'productos/productos_categoria.html', context)
 
@@ -189,94 +236,86 @@ def buscar_productos(request):
 def agregar_carrito(request):
     if request.method == 'POST':
         producto_id = request.POST.get('producto_id')
-        tamano_id = request.POST.get('tamano_id')
-        sabor_ids = request.POST.getlist('sabor_ids[]')
-        cantidad = int(request.POST.get('cantidad', 1))
+        tamano_id   = request.POST.get('tamano_id')
+        sabor_ids   = request.POST.getlist('sabor_ids[]')
+        addon_ids   = request.POST.getlist('addon_ids[]')
+        cantidad    = int(request.POST.get('cantidad', 1))
 
         producto = get_object_or_404(Producto, id=producto_id)
-        tamano = get_object_or_404(Tamano, id=tamano_id, activo=True)
+        tamano   = get_object_or_404(Tamano, id=tamano_id, activo=True)
 
-        # ── VALIDAR STOCK ──────────────────────────────────────────
-        # 1. Verificar stock físico del producto terminado
         carrito_obj, _ = Carrito.objects.get_or_create(user=request.user)
-        ya_en_carrito = CartItem.objects.filter(
-            carrito=carrito_obj,
-            producto=producto,
-            tamano=tamano
+        ya_en_carrito  = CartItem.objects.filter(
+            carrito=carrito_obj, producto=producto, tamano=tamano
         ).first()
         cantidad_en_carrito = ya_en_carrito.cantidad if ya_en_carrito else 0
-        total_solicitado = cantidad_en_carrito + cantidad
+        total_solicitado    = cantidad_en_carrito + cantidad
 
+        # Validar solo stock de producto terminado
         if producto.stock > 0 and total_solicitado > producto.stock:
             return JsonResponse({
                 'success': False,
-                'error': f'Stock insuficiente. Solo hay {producto.stock} '
-                         f'unidades disponibles de {producto.nombre}.'
+                'error': (
+                    f'Stock insuficiente. '
+                    f'Solo hay {producto.stock} unidades disponibles '
+                    f'de {producto.nombre}.'
+                )
             })
 
-        # 2. Verificar stock de insumos por receta
-        recetas = Receta.objects.filter(producto=producto)
-        insumos_faltantes = []
-        for receta in recetas:
-            insumo = receta.insumo
-            necesario = receta.cantidad_requerida * total_solicitado
-            if insumo.stock_actual < necesario:
-                disponible = int(
-                    insumo.stock_actual / receta.cantidad_requerida
-                )
-                insumos_faltantes.append(
-                    f'{insumo.nombre} '
-                    f'(disponible para {disponible} unidades)'
-                )
-
-        if insumos_faltantes:
-            return JsonResponse({
-                'success': False,
-                'error': f'Stock de insumos insuficiente: '
-                         f'{", ".join(insumos_faltantes)}'
-            })
-
-        # ── PRECIO ─────────────────────────────────────────────────
+        # Obtener precio base por tamaño
         try:
-            pt = ProductoTamano.objects.get(
-                producto=producto, tamano=tamano
-            )
-            precio_base = pt.precio
+            pt = ProductoTamano.objects.get(producto=producto, tamano=tamano)
         except ProductoTamano.DoesNotExist:
             return JsonResponse({
                 'success': False,
                 'error': 'El tamaño no está disponible para este producto.'
             })
 
-        sabores = Sabor.objects.filter(id__in=sabor_ids)
-        extra_sabores = sum(s.precio_extra for s in sabores)
-        precio_unitario = precio_base + extra_sabores
+        # Aplicar promoción si existe
+        from django.utils import timezone as tz
+        from decimal import Decimal
+        hoy   = tz.now().date()
+        promo = producto.promociones_aplicadas.filter(
+            activo=True,
+            fecha_inicio__lte=hoy,
+            fecha_fin__gte=hoy,
+        ).first()
 
-        # ── AGREGAR AL CARRITO ─────────────────────────────────────
+        precio_base = pt.precio
+        if promo:
+            if promo.tipo_descuento == 'porcentaje':
+                precio_base = precio_base - (
+                    precio_base * Decimal(str(promo.valor_descuento)) / 100
+                )
+            elif promo.tipo_descuento == 'monto_fijo':
+                precio_base = max(Decimal('0'), precio_base - promo.valor_descuento)
+
+        sabores         = Sabor.objects.filter(id__in=sabor_ids)
+        addons          = Addon.objects.filter(id__in=addon_ids, activo=True)
+        extra_addons    = sum(a.precio_extra for a in addons)
+        precio_unitario = precio_base + extra_addons
+
         item, created = CartItem.objects.get_or_create(
             carrito=carrito_obj,
             producto=producto,
             tamano=tamano,
-            defaults={
-                'cantidad': cantidad,
-                'precio_unitario': precio_unitario
-            }
+            defaults={'cantidad':cantidad,'precio_unitario': precio_unitario,}
         )
         if not created:
-            item.cantidad += cantidad
+            item.cantidad        += cantidad
+            item.precio_unitario  = precio_unitario
             item.save()
 
         item.sabores.set(sabores)
+        item.addons.set(addons)
 
         return JsonResponse({
             'success': True,
             'message': f'{producto.nombre} agregado al carrito.'
         })
 
-    return JsonResponse({
-        'success': False,
-        'error': 'Método no permitido'
-    })
+    return JsonResponse({'success': False, 'error': 'Método no permitido'})
+
     
 @login_required
 def carrito(request):
@@ -298,22 +337,73 @@ def eliminar_item_carrito(request, item_id):
 @admin_required
 def dashboard_admin(request):
     from django.contrib.auth.models import User
+    from django.db.models import Sum
+
+    hoy = timezone.now().date()
+
     pedidos_hoy = Pedido.objects.filter(
-        fecha_pedido__date=timezone.now().date()
+        fecha_pedido__date=hoy
     ).count()
+
     pedidos_pendientes_count = Pedido.objects.filter(
         estado__in=['pendiente', 'confirmado']
     ).count()
+
     insumos_bajos = Insumo.objects.filter(
         stock_actual__lte=models.F('stock_minimo')
     ).count()
+
     total_usuarios = User.objects.count()
 
+    # Ventas del día
+    ventas_hoy = Pedido.objects.filter(
+        fecha_pedido__date=hoy,
+        estado__in=['listo', 'entregado']
+    ).aggregate(total=Sum('total'))['total'] or 0
+
+    # Caja abierta — cualquier cajero
+    caja_abierta = Caja.objects.filter(
+        estado='abierta'
+    ).select_related('empleado_cajero').first()
+
+    # Si hay caja abierta, calcular balance
+    balance_caja     = None
+    total_ingresos   = None
+    total_egresos    = None
+
+    if caja_abierta:
+        ingresos_qs    = caja_abierta.ingresos.all()
+        egresos_qs     = caja_abierta.egresos.all()
+        total_ingresos = sum(i.monto for i in ingresos_qs)
+        total_egresos  = sum(e.monto for e in egresos_qs)
+        balance_caja   = (
+            caja_abierta.monto_inicial +
+            total_ingresos -
+            total_egresos
+        )
+
+    # Producciones en proceso
+    producciones_proceso = ProduccionLog.objects.filter(
+        estado='en_proceso'
+    ).count()
+
+    # Últimos pedidos del día
+    ultimos_pedidos = Pedido.objects.filter(
+        fecha_pedido__date=hoy
+    ).select_related('cliente').order_by('-fecha_pedido')[:5]
+
     context = {
-        'pedidos_hoy': pedidos_hoy,
-        'pedidos_pendientes': pedidos_pendientes_count,
-        'insumos_bajos': insumos_bajos,
-        'total_usuarios': total_usuarios,
+        'pedidos_hoy':           pedidos_hoy,
+        'pedidos_pendientes':    pedidos_pendientes_count,
+        'insumos_bajos':         insumos_bajos,
+        'total_usuarios':        total_usuarios,
+        'ventas_hoy':            ventas_hoy,
+        'caja_abierta':          caja_abierta,
+        'balance_caja':          balance_caja,
+        'total_ingresos':        total_ingresos,
+        'total_egresos':         total_egresos,
+        'producciones_proceso':  producciones_proceso,
+        'ultimos_pedidos':       ultimos_pedidos,
     }
     return render(request, 'dashboard/admin/home.html', context)
 
@@ -344,12 +434,10 @@ def pedidos_pendientes(request):
 #ABM Productos
 @admin_required
 def gestion_productos(request):
-    productos = Producto.objects.select_related('categoria').all().order_by('categoria__nombre', 'nombre')
+    productos = Producto.objects.select_related('categoria').prefetch_related('productotamano_set__tamano').all().order_by('categoria__nombre', 'nombre')
     categorias = Categoria.objects.all()
-    context = {
-        'productos': productos,
-        'categorias': categorias,
-    }
+    context = {'productos':  productos,'categorias': categorias,}
+    
     return render(request, 'dashboard/admin/productos.html', context)
 
 @admin_required
@@ -436,8 +524,16 @@ def eliminar_producto(request, producto_id):
     producto = get_object_or_404(Producto, id=producto_id)
     if request.method == 'POST':
         nombre = producto.nombre
-        producto.delete()
-        messages.success(request, f'Producto "{nombre}" eliminado.')
+        try:
+            producto.delete()
+            messages.success(request, f'Producto "{nombre}" eliminado.')
+        except Exception:
+            messages.error(
+                request,
+                f'No se puede eliminar "{nombre}" porque tiene pedidos, '
+                f'recetas o items de carrito asociados. '
+                f'Desactivalo o eliminá primero esas referencias.'
+            )
     return redirect('gestion_productos')
 
 @admin_required
@@ -461,33 +557,36 @@ def gestion_insumos(request):
 @admin_required
 def crear_insumo(request):
     unidades = UnidadMedida.objects.all()
-    if request.method == 'POST':
-        nombre = request.POST.get('nombre')
-        descripcion = request.POST.get('descripcion', '')
-        unidad_id = request.POST.get('unidad_medida')
-        stock_en_unidad = float(request.POST.get('stock_actual', 0))
-        stock_minimo = float(request.POST.get('stock_minimo', 0))
-        precio_unitario = request.POST.get('precio_unitario_promedio', 0)
 
+    if request.method == 'POST':
+        unidad_id = request.POST.get('unidad_medida')
         unidad = get_object_or_404(UnidadMedida, id=unidad_id)
-        # Convertir a unidad base para almacenar
-        stock_base = stock_en_unidad * float(unidad.factor_conversion)
-        stock_min_base = stock_minimo * float(unidad.factor_conversion)
+
+        def limpiar_decimal(valor, default=0):
+            try:
+                return float(str(valor).replace(',', '.').strip() or default)
+            except (ValueError, TypeError):
+                return default
+
+        stock_en_unidad = limpiar_decimal(request.POST.get('stock_actual', 0))
+        stock_minimo    = limpiar_decimal(request.POST.get('stock_minimo', 0))
 
         Insumo.objects.create(
-            nombre=nombre,
-            descripcion=descripcion,
-            unidad_medida=unidad,
-            stock_actual=stock_base,
-            stock_minimo=stock_min_base,
-            precio_unitario_promedio=precio_unitario,
+            nombre        = request.POST.get('nombre'),
+            descripcion   = request.POST.get('descripcion', ''),
+            unidad_medida = unidad,
+            stock_actual  = stock_en_unidad * float(unidad.factor_conversion),
+            stock_minimo  = stock_minimo    * float(unidad.factor_conversion),
+            # precio_unitario_promedio se actualiza automáticamente al registrar compras
         )
-        messages.success(request, f'Insumo "{nombre}" creado exitosamente.')
+        messages.success(request, 'Insumo creado exitosamente.')
         return redirect('gestion_insumos')
 
     return render(request, 'dashboard/admin/insumo_form.html', {
         'unidades': unidades,
         'accion': 'Crear',
+        'stock_display': 0,
+        'stock_minimo_display': 0,
     })
 
 
@@ -498,22 +597,25 @@ def editar_insumo(request, insumo_id):
 
     if request.method == 'POST':
         unidad_id = request.POST.get('unidad_medida')
-        stock_en_unidad = float(request.POST.get('stock_actual', 0))
-        stock_minimo = float(request.POST.get('stock_minimo', 0))
-
         unidad = get_object_or_404(UnidadMedida, id=unidad_id)
-        stock_base = stock_en_unidad * float(unidad.factor_conversion)
-        stock_min_base = stock_minimo * float(unidad.factor_conversion)
 
-        insumo.nombre = request.POST.get('nombre')
-        insumo.descripcion = request.POST.get('descripcion', '')
+        def limpiar_decimal(valor, default=0):
+            try:
+                return float(str(valor).replace(',', '.').strip() or default)
+            except (ValueError, TypeError):
+                return default
+
+        stock_en_unidad = limpiar_decimal(request.POST.get('stock_actual', 0))
+        stock_minimo    = limpiar_decimal(request.POST.get('stock_minimo', 0))
+
+        insumo.nombre        = request.POST.get('nombre')
+        insumo.descripcion   = request.POST.get('descripcion', '')
         insumo.unidad_medida = unidad
-        insumo.stock_actual = stock_base
-        insumo.stock_minimo = stock_min_base
-        insumo.precio_unitario_promedio = request.POST.get(
-            'precio_unitario_promedio', 0
-        )
+        insumo.stock_actual  = stock_en_unidad * float(unidad.factor_conversion)
+        insumo.stock_minimo  = stock_minimo    * float(unidad.factor_conversion)
+        # precio_unitario_promedio NO se toca aquí, se actualiza en DetalleCompra.save()
         insumo.save()
+
         messages.success(request, f'Insumo "{insumo.nombre}" actualizado.')
         return redirect('gestion_insumos')
 
@@ -521,9 +623,10 @@ def editar_insumo(request, insumo_id):
         'insumo': insumo,
         'unidades': unidades,
         'accion': 'Editar',
+        'stock_display': round(float(insumo.stock_actual) / float(insumo.unidad_medida.factor_conversion), 3),
+        'stock_minimo_display': round(float(insumo.stock_minimo) / float(insumo.unidad_medida.factor_conversion), 3),
     })
-
-
+    
 @admin_required
 def eliminar_insumo(request, insumo_id):
     insumo = get_object_or_404(Insumo, id=insumo_id)
@@ -746,8 +849,47 @@ def registrar_pedido(request):
         precios_data[key] = int(pt.precio)
 
     if request.method == 'POST':
-        # ... resto igual
-        pass
+        cliente_id = request.POST.get('cliente_id')
+        tipo_pedido = request.POST.get('tipo_pedido', 'local')
+        observaciones = request.POST.get('observaciones', '')
+
+        pedido = Pedido.objects.create(
+            cliente_id=cliente_id if cliente_id else None,
+            empleado_cajero=request.user,
+            tipo_pedido=tipo_pedido,
+            observaciones=observaciones,
+            estado='confirmado',
+        )
+
+        producto_ids = request.POST.getlist('producto_id[]')
+        tamano_ids = request.POST.getlist('tamano_id[]')
+        cantidades = request.POST.getlist('cantidad[]')
+
+        for prod_id, tam_id, cantidad in zip(producto_ids, tamano_ids, cantidades):
+            if prod_id and cantidad:
+                key = f"{prod_id}_{tam_id}"
+                precio = precios_data.get(key, 0)
+                DetallePedido.objects.create(
+                    pedido=pedido,
+                    producto_id=prod_id,
+                    tamano_id=tam_id if tam_id else None,
+                    cantidad=int(cantidad),
+                    precio_unitario=precio,
+                )
+
+        pedido.calcular_total()
+
+        # Registrar ingreso si el pago es en el momento
+        Ingreso.objects.create(
+            caja=caja_abierta,
+            pedido=pedido,
+            monto=pedido.total,
+            tipo_ingreso='venta',
+            descripcion=f'Pedido #{pedido.id} — local',
+        )
+
+        messages.success(request, f'Pedido #{pedido.id} registrado exitosamente.')
+        return redirect('gestion_pedidos')
 
     context = {
         'clientes': clientes,
@@ -795,61 +937,56 @@ def detalle_pedido(request, pedido_id):
 def actualizar_estado_pedido(request, pedido_id):
     pedido = get_object_or_404(Pedido, id=pedido_id)
     if request.method == 'POST':
-        nuevo_estado = request.POST.get('estado')
+        nuevo_estado  = request.POST.get('estado')
         estados_validos = [e[0] for e in Pedido.ESTADOS]
 
         if nuevo_estado in estados_validos:
             estado_anterior = pedido.estado
-            pedido.estado = nuevo_estado
+            pedido.estado   = nuevo_estado
             pedido.save()
 
-            # Descontar insumos cuando pasa a "en_preparacion"
+            # Al pasar a "en_preparacion" descontar stock de producto terminado
             if nuevo_estado == 'en_preparacion' and estado_anterior != 'en_preparacion':
-                insumos_faltantes = []
+                sin_stock = []
                 for detalle in pedido.detalles.all():
-                    recetas = Receta.objects.filter(producto=detalle.producto)
-                    for receta in recetas:
-                        insumo = receta.insumo
-                        # cantidad_requerida está en unidad base (gramos/mL)
-                        cantidad_necesaria = receta.cantidad_requerida * detalle.cantidad
-                        if insumo.stock_actual >= cantidad_necesaria:
-                            insumo.stock_actual -= cantidad_necesaria
-                            insumo.ultima_operacion = (
-                                f'Pedido #{pedido.id}: '
-                                f'-{receta.cantidad_requerida * detalle.cantidad} unidades base'
-                            )
-                            insumo.save()
-                        else:
-                            # Mostrar en unidad legible
-                            disponible_display = (
-                                insumo.stock_actual /
-                                insumo.unidad_medida.factor_conversion
-                            )
-                            insumos_faltantes.append(
-                                f"{insumo.nombre}: necesitás "
-                                f"{receta.cantidad_requerida * detalle.cantidad / insumo.unidad_medida.factor_conversion:.2f}"
-                                f" {insumo.unidad_medida.simbolo}, "
-                                f"hay {disponible_display:.2f} {insumo.unidad_medida.simbolo}"
-                            )
-                
+                    producto = detalle.producto
+                    if producto.stock >= detalle.cantidad:
+                        producto.stock -= detalle.cantidad
+                        producto.save()
+                    else:
+                        sin_stock.append(
+                            f'{producto.nombre}: '
+                            f'necesitás {detalle.cantidad}, '
+                            f'hay {producto.stock}'
+                        )
+
+                if sin_stock:
+                    # Revertir estado
+                    pedido.estado = estado_anterior
+                    pedido.save()
+                    messages.error(
+                        request,
+                        f'Stock insuficiente: {" | ".join(sin_stock)}'
+                    )
+                    return redirect(
+                        request.POST.get('next', 'gestion_pedidos')
+                    )
+
     next_url = request.POST.get('next', 'gestion_pedidos')
     return redirect(next_url)
 
 # Vista de despacho
-@empleado_required
+@login_required
 def vista_despacho(request):
-    pedidos = Pedido.objects.filter(
-        estado__in=['confirmado', 'en_preparacion']
+    pedidos = Pedido.objects.filter(estado__in=['pendiente', 'confirmado', 'en_preparacion']
     ).prefetch_related(
         'detalles__producto',
         'detalles__tamano',
+        'detalles__sabores',
+        'detalles__addons',
     ).select_related('cliente').order_by('fecha_pedido')
 
-    context = {
-        'pedidos': pedidos,
-        'estados': Pedido.ESTADOS,
-    }
-    return render(request, 'dashboard/empleado/despacho.html', context)
+    return render(request, 'dashboard/empleado/despacho.html', {'pedidos': pedidos,})
 
 # Pedidos Online — Cliente
 @login_required
@@ -858,6 +995,15 @@ def realizar_pedido_online(request):
     
     if not carrito_obj or not carrito_obj.items.exists():
         messages.error(request, 'Tu carrito está vacío.')
+        return redirect('carrito')
+    
+    caja_abierta = Caja.objects.filter(estado='abierta').first()
+    if not caja_abierta:
+        messages.error(
+            request,
+            'No es posible realizar pedidos en este momento. '
+            'La heladería no tiene caja abierta.'
+        )
         return redirect('carrito')
 
     if request.method == 'POST':
@@ -1002,7 +1148,7 @@ def modificar_pedido(request, pedido_id):
     return render(request, 'pedidos/modificar_pedido.html', context)
 
 # Módulo de caja
-@empleado_required
+@login_required
 def apertura_caja(request):
     # Verificar si ya hay una caja abierta
     caja_abierta = Caja.objects.filter(
@@ -1034,42 +1180,54 @@ def apertura_caja(request):
     return render(request, 'dashboard/empleado/apertura_caja.html')
 
 
-@empleado_required
+@login_required
 def gestion_caja(request):
-    caja_abierta = Caja.objects.filter(
-        empleado_cajero=request.user,
-        estado='abierta'
-    ).first()
+    es_admin = (
+        hasattr(request.user, 'profile') and
+        request.user.profile.rol and
+        request.user.profile.rol.nombre == 'Administrador'
+    )
 
-    cajas_anteriores = Caja.objects.filter(
-        empleado_cajero=request.user,
-        estado='cerrada'
-    ).order_by('-fecha_apertura')[:5]
+    if es_admin:
+        caja_abierta = Caja.objects.filter(estado='abierta').first()
+        cajas_anteriores = Caja.objects.filter(
+            estado='cerrada'
+        ).select_related('empleado_cajero').order_by('-fecha_apertura')[:10]
+    else:
+        caja_abierta = Caja.objects.filter(
+            empleado_cajero=request.user,
+            estado='abierta'
+        ).first()
+        cajas_anteriores = Caja.objects.filter(
+            empleado_cajero=request.user,
+            estado='cerrada'
+        ).order_by('-fecha_apertura')[:5]
 
     context = {
-        'caja': caja_abierta,
+        'caja':            caja_abierta,
         'cajas_anteriores': cajas_anteriores,
+        'es_admin':        es_admin,
     }
 
     if caja_abierta:
         ingresos = caja_abierta.ingresos.all().order_by('-fecha')
-        egresos = caja_abierta.egresos.all().order_by('-fecha')
+        egresos  = caja_abierta.egresos.all().order_by('-fecha')
         total_ingresos = sum(i.monto for i in ingresos)
-        total_egresos = sum(e.monto for e in egresos)
+        total_egresos  = sum(e.monto for e in egresos)
         balance = caja_abierta.monto_inicial + total_ingresos - total_egresos
 
         context.update({
-            'ingresos': ingresos,
-            'egresos': egresos,
+            'ingresos':       ingresos,
+            'egresos':        egresos,
             'total_ingresos': total_ingresos,
-            'total_egresos': total_egresos,
-            'balance': balance,
+            'total_egresos':  total_egresos,
+            'balance':        balance,
         })
 
     return render(request, 'dashboard/empleado/gestion_caja.html', context)
 
 
-@empleado_required
+@login_required
 def registrar_ingreso(request):
     caja = Caja.objects.filter(
         empleado_cajero=request.user,
@@ -1077,7 +1235,11 @@ def registrar_ingreso(request):
     ).first()
 
     if not caja:
-        messages.error(request, 'No tenés una caja abierta.')
+        messages.error(
+            request,
+            'No podés registrar un ingreso sin una caja abierta. '
+            'Abrí la caja primero.'
+        )
         return redirect('apertura_caja')
 
     if request.method == 'POST':
@@ -1100,71 +1262,50 @@ def registrar_ingreso(request):
     })
 
 
-@empleado_required
+@login_required
 def registrar_egreso(request):
     caja = Caja.objects.filter(
-        empleado_cajero=request.user,
-        estado='abierta'
+        empleado_cajero=request.user, estado='abierta'
     ).first()
 
     if not caja:
-        messages.error(request, 'No tenés una caja abierta.')
+        messages.error(
+            request,
+            'No podés registrar un egreso sin una caja abierta. '
+            'Abrí la caja primero.'
+        )
         return redirect('apertura_caja')
+
+    total_ingresos = sum(i.monto for i in caja.ingresos.all())
+    total_egresos = sum(e.monto for e in caja.egresos.all())
+    balance_actual = float(caja.monto_inicial) + float(total_ingresos) - float(total_egresos)
 
     if request.method == 'POST':
         monto = float(request.POST.get('monto', 0))
         motivo = request.POST.get('motivo')
         tipo_egreso = request.POST.get('tipo_egreso', 'gasto_operativo')
         descripcion = request.POST.get('descripcion', '')
+        proveedores = Proveedor.objects.all().order_by('nombre')
 
-        # Calcular balance actual
-        total_ingresos = sum(
-            i.monto for i in caja.ingresos.all()
-        )
-        total_egresos = sum(
-            e.monto for e in caja.egresos.all()
-        )
-        balance_actual = float(caja.monto_inicial) + float(total_ingresos) - float(total_egresos)
-
-        # Verificar que no quede negativo
         if monto > balance_actual:
-            messages.error(
-                request,
-                f'No podés registrar este egreso. '
-                f'El balance actual es G. {balance_actual:,.0f} '
-                f'y el egreso es G. {monto:,.0f}. '
-                f'La caja no puede quedar negativa.'
-            )
-            return render(request, 'dashboard/empleado/registrar_egreso.html', {
-                'caja': caja,
-                'tipos': Egreso.TIPOS_EGRESO,
-                'balance_actual': balance_actual,
-            })
-
-        Egreso.objects.create(
-            caja=caja,
-            responsable=request.user,
-            monto=monto,
-            motivo=motivo,
-            tipo_egreso=tipo_egreso,
-            descripcion=descripcion,
-        )
-        messages.success(request, f'Egreso de G. {monto:,.0f} registrado.')
-        return redirect('gestion_caja')
-
-    # Calcular balance para mostrar
-    total_ingresos = sum(i.monto for i in caja.ingresos.all())
-    total_egresos = sum(e.monto for e in caja.egresos.all())
-    balance_actual = float(caja.monto_inicial) + float(total_ingresos) - float(total_egresos)
+            messages.error(request, f'Balance insuficiente. Disponible: G. {balance_actual:,.0f}')
+            # no hace falta recalcular, balance_actual ya está
+        else:
+            Egreso.objects.create(caja=caja,responsable=request.user,monto=monto,motivo=motivo,
+            tipo_egreso=tipo_egreso,descripcion=descripcion,nro_comprobante=request.POST.get('nro_comprobante', ''),
+            proveedor_id=request.POST.get('proveedor_id') or None,)
+            
+            messages.success(request, f'Egreso de G. {monto:,.0f} registrado.')
+            return redirect('gestion_caja')
 
     return render(request, 'dashboard/empleado/registrar_egreso.html', {
         'caja': caja,
         'tipos': Egreso.TIPOS_EGRESO,
         'balance_actual': balance_actual,
+        'proveedores': Proveedor.objects.all().order_by('nombre'),
     })
     
-
-@empleado_required
+@login_required
 def cierre_caja(request):
     caja = Caja.objects.filter(
         empleado_cajero=request.user,
@@ -1273,40 +1414,51 @@ def reporte_ventas(request):
 
 @admin_required
 def reporte_productos(request):
-    # Productos más y menos vendidos
-    productos_mas = DetallePedido.objects.filter(
+    fecha_inicio = request.GET.get('fecha_inicio')
+    fecha_fin    = request.GET.get('fecha_fin')
+
+    qs = DetallePedido.objects.filter(
         pedido__estado__in=['listo', 'entregado']
-    ).values(
-        'producto__nombre'
-    ).annotate(
+    )
+    if fecha_inicio:
+        qs = qs.filter(pedido__fecha_pedido__date__gte=fecha_inicio)
+    if fecha_fin:
+        qs = qs.filter(pedido__fecha_pedido__date__lte=fecha_fin)
+
+    productos_mas = qs.values('producto__nombre').annotate(
         total_vendido=Sum('cantidad'),
         ingresos=Sum('subtotal')
     ).order_by('-total_vendido')[:10]
 
-    productos_menos = DetallePedido.objects.filter(
-        pedido__estado__in=['listo', 'entregado']
-    ).values(
-        'producto__nombre'
-    ).annotate(
+    productos_menos = qs.values('producto__nombre').annotate(
         total_vendido=Sum('cantidad'),
         ingresos=Sum('subtotal')
     ).order_by('total_vendido')[:10]
 
     context = {
-        'productos_mas': productos_mas,
+        'productos_mas':   productos_mas,
         'productos_menos': productos_menos,
+        'fecha_inicio':    fecha_inicio,
+        'fecha_fin':       fecha_fin,
     }
     return render(request, 'dashboard/admin/reporte_productos.html', context)
 
 
 @admin_required
 def reporte_clientes(request):
-    # Top 10 clientes con más compras
-    from django.contrib.auth.models import User
-    top_clientes = Pedido.objects.filter(
+    fecha_inicio = request.GET.get('fecha_inicio')
+    fecha_fin    = request.GET.get('fecha_fin')
+
+    qs = Pedido.objects.filter(
         estado__in=['listo', 'entregado'],
         cliente__isnull=False
-    ).values(
+    )
+    if fecha_inicio:
+        qs = qs.filter(fecha_pedido__date__gte=fecha_inicio)
+    if fecha_fin:
+        qs = qs.filter(fecha_pedido__date__lte=fecha_fin)
+
+    top_clientes = qs.values(
         'cliente__username',
         'cliente__first_name',
         'cliente__last_name',
@@ -1317,64 +1469,75 @@ def reporte_clientes(request):
 
     context = {
         'top_clientes': top_clientes,
+        'fecha_inicio': fecha_inicio,
+        'fecha_fin':    fecha_fin,
     }
     return render(request, 'dashboard/admin/reporte_clientes.html', context)
 
 
 @admin_required
 def reporte_costos(request):
-    # Reporte de costos y ganancias mensuales
-    mes = request.GET.get('mes', timezone.now().month)
-    anio = request.GET.get('anio', timezone.now().year)
+    mes  = int(request.GET.get('mes',  timezone.now().month))
+    anio = int(request.GET.get('anio', timezone.now().year))
 
-    mes = int(mes)
-    anio = int(anio)
-
-    # Ventas del mes
     ventas_mes = Pedido.objects.filter(
         estado__in=['listo', 'entregado'],
         fecha_pedido__month=mes,
         fecha_pedido__year=anio,
     ).aggregate(total=Sum('total'))['total'] or 0
 
-    # Compras del mes
-    compras_mes = Compra.objects.filter(
-        fecha__month=mes,
-        fecha__year=anio,
-    ).aggregate(total=Sum('total_compra'))['total'] or 0
+    # Costo real = insumos descontados en producciones completadas ese mes
+    # Se calcula multiplicando cantidad_requerida * cantidad_real * precio_unitario_promedio
+    costo_produccion = 0
+    producciones_mes = ProduccionLog.objects.filter(
+        estado='completada',
+        fecha_completada__month=mes,
+        fecha_completada__year=anio,
+    ).select_related('producto')
 
-    # Egresos del mes
-    egresos_mes = Egreso.objects.filter(
+    for log in producciones_mes:
+        recetas = Receta.objects.filter(
+            producto=log.producto
+        ).select_related('insumo')
+        for receta in recetas:
+            cantidad_usada  = float(receta.cantidad_requerida) * float(log.cantidad_planificada)
+            costo_produccion += (
+                cantidad_usada * float(receta.insumo.precio_unitario_promedio)
+            )
+
+    # Egresos operativos del mes (sin compras de insumos)
+    egresos_operativos = Egreso.objects.filter(
         fecha__month=mes,
         fecha__year=anio,
+    ).exclude(
+        tipo_egreso='compra_insumos'
     ).aggregate(total=Sum('monto'))['total'] or 0
 
-    ganancia = ventas_mes - compras_mes - egresos_mes
+    ganancia = float(ventas_mes) - costo_produccion - float(egresos_operativos)
 
-    # Lista de meses para el filtro
     meses = [
-        (1, 'Enero'), (2, 'Febrero'), (3, 'Marzo'), (4, 'Abril'),
-        (5, 'Mayo'), (6, 'Junio'), (7, 'Julio'), (8, 'Agosto'),
-        (9, 'Septiembre'), (10, 'Octubre'), (11, 'Noviembre'), (12, 'Diciembre')
+        (1,'Enero'),(2,'Febrero'),(3,'Marzo'),(4,'Abril'),
+        (5,'Mayo'),(6,'Junio'),(7,'Julio'),(8,'Agosto'),
+        (9,'Septiembre'),(10,'Octubre'),(11,'Noviembre'),(12,'Diciembre')
     ]
 
     context = {
-        'ventas_mes': ventas_mes,
-        'compras_mes': compras_mes,
-        'egresos_mes': egresos_mes,
-        'ganancia': ganancia,
-        'mes_actual': mes,
-        'anio_actual': anio,
-        'meses': meses,
+        'ventas_mes':          ventas_mes,
+        'costo_produccion':    round(costo_produccion, 0),
+        'egresos_operativos':  egresos_operativos,
+        'ganancia':            round(ganancia, 0),
+        'mes_actual':          mes,
+        'anio_actual':         anio,
+        'meses':               meses,
+        'producciones_mes':    producciones_mes,
     }
     return render(request, 'dashboard/admin/reporte_costos.html', context)
 
 # Ticket de pago
-@empleado_required
+@login_required
 def confirmar_pago(request, pedido_id):
     pedido = get_object_or_404(Pedido, id=pedido_id)
 
-    # Verificar caja abierta
     caja_abierta = Caja.objects.filter(
         empleado_cajero=request.user,
         estado='abierta'
@@ -1390,30 +1553,34 @@ def confirmar_pago(request, pedido_id):
 
     if request.method == 'POST':
         metodo_pago = request.POST.get('metodo_pago', 'efectivo')
-        pedido.metodo_pago = metodo_pago
-        pedido.pago_confirmado = True
-        pedido.estado = 'entregado'
+        pedido.metodo_pago      = metodo_pago
+        pedido.pago_confirmado  = True
+        pedido.estado           = 'entregado'
         pedido.save()
 
-        Ingreso.objects.create(
-            caja=caja_abierta,
+        # Usar get_or_create para evitar duplicados
+        Ingreso.objects.get_or_create(
             pedido=pedido,
-            monto=pedido.total,
-            tipo_ingreso='venta',
-            descripcion=f'Pedido #{pedido.id} — {metodo_pago}',
+            defaults={
+                'caja':        caja_abierta,
+                'monto':       pedido.total,
+                'tipo_ingreso': 'venta',
+                'descripcion': f'Pedido #{pedido.id} — {metodo_pago}',
+            }
         )
+
         messages.success(request, 'Pago confirmado y registrado en caja.')
         return redirect('ticket_pedido', pedido_id=pedido.id)
 
     detalles = pedido.detalles.select_related('producto', 'tamano').all()
     return render(request, 'dashboard/empleado/confirmar_pago.html', {
-        'pedido': pedido,
+        'pedido':   pedido,
         'detalles': detalles,
-        'metodos': Pedido.METODOS_PAGO,
-        'caja': caja_abierta,
+        'metodos':  Pedido.METODOS_PAGO,
+        'caja':     caja_abierta,
     })
     
-
+@login_required
 def ticket_pedido(request, pedido_id):
     pedido = get_object_or_404(Pedido, id=pedido_id)
     detalles = pedido.detalles.select_related('producto', 'tamano').all()
@@ -1521,6 +1688,154 @@ def crear_usuario(request):
         'roles': roles,
         'accion': 'Crear',
     })
+   
+# ABM Addons / Agregados
+@admin_required
+def gestion_addons(request):
+    addons  = Addon.objects.select_related('insumo').all().order_by('nombre')
+    insumos = Insumo.objects.select_related('unidad_medida').all().order_by('nombre')
+    context = {
+        'addons':  addons,
+        'insumos': insumos,
+    }
+    return render(request, 'dashboard/admin/addons.html', context)
+
+
+@admin_required
+def crear_addon(request):
+    insumos    = Insumo.objects.select_related(
+        'unidad_medida'
+    ).all().order_by('nombre')
+    categorias = Categoria.objects.all().order_by('nombre')
+
+    if request.method == 'POST':
+        def limpiar_decimal(valor, default=0):
+            try:
+                return float(
+                    str(valor).replace(',', '.').strip() or default
+                )
+            except (ValueError, TypeError):
+                return default
+
+        insumo_id          = request.POST.get('insumo_id') or None
+        cantidad_en_unidad = limpiar_decimal(
+            request.POST.get('cantidad_descontar', 0)
+        )
+        cantidad_base = 0
+
+        if insumo_id:
+            insumo        = get_object_or_404(Insumo, id=insumo_id)
+            cantidad_base = cantidad_en_unidad * float(
+                insumo.unidad_medida.factor_conversion
+            )
+
+        addon = Addon(
+            nombre             = request.POST.get('nombre'),
+            precio_extra       = limpiar_decimal(
+                request.POST.get('precio_extra', 0)
+            ),
+            insumo_id          = insumo_id,
+            cantidad_descontar = cantidad_base,
+            activo             = request.POST.get('activo') == 'on',
+        )
+        addon.save()
+
+        # Guardar categorías DESPUÉS del save para que exista el ID
+        cat_ids = request.POST.getlist('categorias[]')
+        if cat_ids:
+            addon.categorias.set(cat_ids)
+        else:
+            addon.categorias.clear()
+
+        messages.success(
+            request, f'Agregado "{addon.nombre}" creado exitosamente.'
+        )
+        return redirect('gestion_addons')
+
+    return render(request, 'dashboard/admin/addon_form.html', {
+        'insumos':                insumos,
+        'categorias':             categorias,
+        'categorias_seleccionadas': [],
+        'accion':                 'Crear',
+    })
+
+
+@admin_required
+def editar_addon(request, addon_id):
+    addon      = get_object_or_404(Addon, id=addon_id)
+    insumos    = Insumo.objects.select_related(
+        'unidad_medida'
+    ).all().order_by('nombre')
+    categorias = Categoria.objects.all().order_by('nombre')
+
+    if request.method == 'POST':
+        def limpiar_decimal(valor, default=0):
+            try:
+                return float(
+                    str(valor).replace(',', '.').strip() or default
+                )
+            except (ValueError, TypeError):
+                return default
+
+        insumo_id          = request.POST.get('insumo_id') or None
+        cantidad_en_unidad = limpiar_decimal(
+            request.POST.get('cantidad_descontar', 0)
+        )
+        cantidad_base = 0
+
+        if insumo_id:
+            insumo        = get_object_or_404(Insumo, id=insumo_id)
+            cantidad_base = cantidad_en_unidad * float(
+                insumo.unidad_medida.factor_conversion
+            )
+
+        addon.nombre             = request.POST.get('nombre')
+        addon.precio_extra       = limpiar_decimal(
+            request.POST.get('precio_extra', 0)
+        )
+        addon.insumo_id          = insumo_id
+        addon.cantidad_descontar = cantidad_base
+        addon.activo             = request.POST.get('activo') == 'on'
+        addon.save()
+
+        cat_ids = request.POST.getlist('categorias[]')
+        if cat_ids:
+            addon.categorias.set(cat_ids)
+        else:
+            addon.categorias.clear()
+
+        messages.success(
+            request, f'Agregado "{addon.nombre}" actualizado.'
+        )
+        return redirect('gestion_addons')
+
+    cantidad_display = 0
+    if addon.insumo and addon.cantidad_descontar:
+        cantidad_display = round(
+            float(addon.cantidad_descontar) /
+            float(addon.insumo.unidad_medida.factor_conversion), 4
+        )
+
+    return render(request, 'dashboard/admin/addon_form.html', {
+        'addon':                  addon,
+        'insumos':                insumos,
+        'categorias':             categorias,
+        'categorias_seleccionadas': list(
+            addon.categorias.values_list('id', flat=True)
+        ),
+        'accion':                 'Editar',
+        'cantidad_display':       cantidad_display,
+    })
+
+
+@admin_required
+def eliminar_addon(request, addon_id):
+    addon = get_object_or_404(Addon, id=addon_id)
+    if request.method == 'POST':
+        nombre = addon.nombre
+        addon.delete()
+        messages.success(request, f'Agregado "{nombre}" eliminado.')
+    return redirect('gestion_addons')   
     
 # Promociones
 @admin_required
@@ -1702,10 +2017,20 @@ def gestion_recetas(request):
 def crear_receta(request):
     if request.method == 'POST':
         producto_id = request.POST.get('producto')
-        insumo_id = request.POST.get('insumo')
-        cantidad = request.POST.get('cantidad_requerida')
+        insumo_id   = request.POST.get('insumo')
 
-        # Verificar si ya existe
+        def limpiar_decimal(valor, default=0):
+            try:
+                return float(str(valor).replace(',', '.').strip() or default)
+            except (ValueError, TypeError):
+                return default
+
+        cantidad_en_unidad = limpiar_decimal(request.POST.get('cantidad_requerida', 0))
+
+        insumo = get_object_or_404(Insumo, id=insumo_id)
+        # Convertir a unidad base (gramos/mL) para guardar
+        cantidad_base = cantidad_en_unidad * float(insumo.unidad_medida.factor_conversion)
+
         if Receta.objects.filter(
             producto_id=producto_id,
             insumo_id=insumo_id
@@ -1718,40 +2043,60 @@ def crear_receta(request):
             Receta.objects.create(
                 producto_id=producto_id,
                 insumo_id=insumo_id,
-                cantidad_requerida=cantidad,
+                cantidad_requerida=cantidad_base,
             )
             messages.success(request, 'Receta creada exitosamente.')
         return redirect('gestion_recetas')
 
     productos = Producto.objects.all().order_by('nombre')
-    insumos = Insumo.objects.all().order_by('nombre')
+    insumos   = Insumo.objects.select_related('unidad_medida').all().order_by('nombre')
     return render(request, 'dashboard/admin/receta_form.html', {
         'productos': productos,
-        'insumos': insumos,
-        'accion': 'Crear',
+        'insumos':   insumos,
+        'accion':    'Crear',
     })
 
 
 @admin_required
 def editar_receta(request, receta_id):
-    receta = get_object_or_404(Receta, id=receta_id)
+    receta  = get_object_or_404(Receta, id=receta_id)
+    productos = Producto.objects.all().order_by('nombre')
+    insumos   = Insumo.objects.select_related('unidad_medida').all().order_by('nombre')
+
     if request.method == 'POST':
-        receta.producto_id = request.POST.get('producto')
-        receta.insumo_id = request.POST.get('insumo')
-        receta.cantidad_requerida = request.POST.get('cantidad_requerida')
+        insumo_id = request.POST.get('insumo')
+        insumo    = get_object_or_404(Insumo, id=insumo_id)
+
+        def limpiar_decimal(valor, default=0):
+            try:
+                return float(str(valor).replace(',', '.').strip() or default)
+            except (ValueError, TypeError):
+                return default
+
+        cantidad_en_unidad = limpiar_decimal(request.POST.get('cantidad_requerida', 0))
+        cantidad_base = cantidad_en_unidad * float(insumo.unidad_medida.factor_conversion)
+
+        receta.producto_id        = request.POST.get('producto')
+        receta.insumo_id          = insumo_id
+        receta.cantidad_requerida = cantidad_base
         receta.save()
         messages.success(request, 'Receta actualizada.')
         return redirect('gestion_recetas')
 
-    productos = Producto.objects.all().order_by('nombre')
-    insumos = Insumo.objects.all().order_by('nombre')
-    return render(request, 'dashboard/admin/receta_form.html', {
-        'receta': receta,
-        'productos': productos,
-        'insumos': insumos,
-        'accion': 'Editar',
-    })
+    # Convertir cantidad guardada a unidad legible para mostrar en el form
+    cantidad_display = round(
+        float(receta.cantidad_requerida) /
+        float(receta.insumo.unidad_medida.factor_conversion), 4
+    )
 
+    return render(request, 'dashboard/admin/receta_form.html', {
+        'receta':            receta,
+        'productos':         productos,
+        'insumos':           insumos,
+        'accion':            'Editar',
+        'cantidad_display':  cantidad_display,
+    })
+    
 
 @admin_required
 def eliminar_receta(request, receta_id):
@@ -1769,36 +2114,53 @@ def registrar_produccion(request):
     ).all().order_by('nombre')
 
     if request.method == 'POST':
-        producto_id = request.POST.get('producto')
-        cantidad_producida = int(request.POST.get('cantidad_producida', 0))
-        observaciones = request.POST.get('observaciones', '')
+        producto_id     = request.POST.get('producto')
+        observaciones   = request.POST.get('observaciones', '')
 
-        if cantidad_producida <= 0:
+        def limpiar_decimal(valor, default=0):
+            try:
+                return float(str(valor).replace(',', '.').strip() or default)
+            except (ValueError, TypeError):
+                return default
+
+        try:
+            cantidad_planif = int(request.POST.get('cantidad_producida', 0))
+        except (ValueError, TypeError):
+            cantidad_planif = 0
+
+        if cantidad_planif <= 0:
             messages.error(request, 'La cantidad debe ser mayor a 0.')
             return redirect('registrar_produccion')
 
         producto = get_object_or_404(Producto, id=producto_id)
-        recetas = Receta.objects.filter(
+        recetas  = Receta.objects.filter(
             producto=producto
-        ).select_related('insumo')
+        ).select_related('insumo__unidad_medida')
 
         if not recetas.exists():
             messages.error(
                 request,
-                f'El producto "{producto.nombre}" no tiene receta cargada.'
+                f'"{producto.nombre}" no tiene receta cargada. '
+                f'Cargá la receta antes de registrar producción.'
             )
             return redirect('registrar_produccion')
 
-        # Verificar que hay suficientes insumos
+        # Verificar stock suficiente antes de descontar
         insumos_faltantes = []
         for receta in recetas:
-            insumo = receta.insumo
-            necesario = receta.cantidad_requerida * cantidad_producida
-            if insumo.stock_actual < necesario:
+            insumo    = receta.insumo
+            necesario = float(receta.cantidad_requerida) * cantidad_planif
+            if float(insumo.stock_actual) < necesario:
+                necesario_display  = round(
+                    necesario / float(insumo.unidad_medida.factor_conversion), 3
+                )
+                disponible_display = round(
+                    float(insumo.stock_actual) / float(insumo.unidad_medida.factor_conversion), 3
+                )
                 insumos_faltantes.append(
-                    f'{insumo.nombre}: necesitás {necesario} '
+                    f'{insumo.nombre}: necesitás {necesario_display} '
                     f'{insumo.unidad_medida.simbolo}, '
-                    f'hay {insumo.stock_actual}'
+                    f'hay {disponible_display} {insumo.unidad_medida.simbolo}'
                 )
 
         if insumos_faltantes:
@@ -1808,21 +2170,35 @@ def registrar_produccion(request):
             )
             return redirect('registrar_produccion')
 
-        # Descontar insumos y actualizar última operación
+        # Descontar insumos
         for receta in recetas:
-            insumo = receta.insumo
-            insumo.stock_actual -= receta.cantidad_requerida * cantidad_producida
-            insumo.ultima_operacion = f'Producción: {cantidad_producida} x {producto.nombre}'
+            insumo             = receta.insumo
+            cantidad_descontar = float(receta.cantidad_requerida) * cantidad_planif
+            insumo.stock_actual = float(insumo.stock_actual) - cantidad_descontar
+            cantidad_display   = round(
+                cantidad_descontar / float(insumo.unidad_medida.factor_conversion), 3
+            )
+            nombre_corto = producto.nombre[:25]
+            insumo.ultima_operacion = (
+                f'Prod: -{cantidad_display}{insumo.unidad_medida.simbolo} '
+                f'({nombre_corto})'
+            )
             insumo.save()
 
-        # Sumar al stock de productos terminados
-        producto.stock += cantidad_producida
-        producto.save()
+        # Crear log en estado "en_proceso" — stock del producto NO se toca aún
+        ProduccionLog.objects.create(
+            producto             = producto,
+            cantidad_planificada = cantidad_planif,
+            responsable          = request.user,
+            observaciones        = observaciones,
+            estado               = 'en_proceso',
+        )
 
         messages.success(
             request,
-            f'Producción registrada: {cantidad_producida} unidades de '
-            f'"{producto.nombre}". Stock actualizado a {producto.stock}.'
+            f'✅ Producción iniciada: {cantidad_planif} unidades de '
+            f'"{producto.nombre}". Insumos descontados. '
+            f'Cuando esté lista, registrá la cantidad real en el historial.'
         )
         return redirect('historial_produccion')
 
@@ -1832,48 +2208,260 @@ def registrar_produccion(request):
         recetas = producto.recetas.all()
         if recetas:
             min_producible = None
-            limitante = None
+            limitante      = None
             detalle_receta = []
             for receta in recetas:
                 insumo = receta.insumo
-                if receta.cantidad_requerida > 0:
+                if float(receta.cantidad_requerida) > 0:
                     producible = int(
-                        insumo.stock_actual / receta.cantidad_requerida
+                        float(insumo.stock_actual) / float(receta.cantidad_requerida)
                     )
                     if min_producible is None or producible < min_producible:
                         min_producible = producible
-                        limitante = insumo.nombre
+                        limitante      = insumo.nombre
+                stock_display    = round(
+                    float(insumo.stock_actual) /
+                    float(insumo.unidad_medida.factor_conversion), 3
+                )
+                cantidad_display = round(
+                    float(receta.cantidad_requerida) /
+                    float(insumo.unidad_medida.factor_conversion), 4
+                )
                 detalle_receta.append({
-                    'insumo': insumo.nombre,
-                    'cantidad': receta.cantidad_requerida,
-                    'unidad': insumo.unidad_medida.simbolo,
-                    'stock': insumo.stock_actual,
+                    'insumo':   insumo.nombre,
+                    'cantidad': cantidad_display,
+                    'unidad':   insumo.unidad_medida.simbolo,
+                    'stock':    stock_display,
                 })
             productos_con_info.append({
-                'producto': producto,
+                'producto':   producto,
                 'producible': min_producible or 0,
-                'limitante': limitante,
-                'receta': detalle_receta,
+                'limitante':  limitante,
+                'receta':     detalle_receta,
             })
         else:
             productos_con_info.append({
-                'producto': producto,
+                'producto':   producto,
                 'producible': None,
-                'limitante': None,
-                'receta': [],
+                'limitante':  None,
+                'receta':     [],
             })
+
+    logs_en_proceso = ProduccionLog.objects.filter(
+        estado='en_proceso'
+    ).select_related('producto', 'responsable').order_by('-fecha')
 
     return render(request, 'dashboard/admin/registrar_produccion.html', {
         'productos_con_info': productos_con_info,
+        'logs_en_proceso':    logs_en_proceso,
     })
 
 
 @admin_required
+def editar_produccion(request, log_id):
+    log = get_object_or_404(ProduccionLog, id=log_id)
+
+    if log.estado == 'completada':
+        messages.error(request, 'No podés editar una producción ya completada.')
+        return redirect('registrar_produccion')
+
+    if request.method == 'POST':
+        def limpiar_decimal(valor, default=0):
+            try:
+                return float(str(valor).replace(',', '.').strip() or default)
+            except (ValueError, TypeError):
+                return default
+
+        nueva_cantidad = limpiar_decimal(
+            request.POST.get('cantidad_planificada', 0)
+        )
+        observaciones = request.POST.get('observaciones', '')
+
+        if nueva_cantidad <= 0:
+            messages.error(request, 'La cantidad debe ser mayor a 0.')
+            return redirect('registrar_produccion')
+
+        cantidad_anterior = float(log.cantidad_planificada)
+        diferencia        = nueva_cantidad - cantidad_anterior
+
+        if diferencia != 0:
+            # Ajustar insumos según la diferencia
+            recetas = Receta.objects.filter(
+                producto=log.producto
+            ).select_related('insumo__unidad_medida')
+
+            if diferencia > 0:
+                # Necesita más insumos — verificar stock
+                faltantes = []
+                for receta in recetas:
+                    insumo    = receta.insumo
+                    necesario = float(receta.cantidad_requerida) * diferencia
+                    if float(insumo.stock_actual) < necesario:
+                        disp = round(
+                            float(insumo.stock_actual) /
+                            float(insumo.unidad_medida.factor_conversion), 3
+                        )
+                        faltantes.append(
+                            f'{insumo.nombre}: hay {disp} '
+                            f'{insumo.unidad_medida.simbolo}'
+                        )
+                if faltantes:
+                    messages.error(
+                        request,
+                        f'Stock insuficiente para ampliar: {" | ".join(faltantes)}'
+                    )
+                    return redirect('registrar_produccion')
+
+            for receta in recetas:
+                insumo          = receta.insumo
+                ajuste          = float(receta.cantidad_requerida) * diferencia
+                insumo.stock_actual = float(insumo.stock_actual) - ajuste
+                ajuste_display  = round(
+                    abs(ajuste) / float(insumo.unidad_medida.factor_conversion), 3
+                )
+                signo = '-' if ajuste > 0 else '+'
+                nombre_corto = log.producto.nombre[:20]
+                insumo.ultima_operacion = (
+                    f'Ajuste prod: {signo}{ajuste_display}'
+                    f'{insumo.unidad_medida.simbolo} ({nombre_corto})'
+                )
+                insumo.save()
+
+        log.cantidad_planificada = nueva_cantidad
+        log.observaciones        = observaciones
+        log.save()
+
+        messages.success(
+            request,
+            f'Producción actualizada: {nueva_cantidad} unidades de '
+            f'"{log.producto.nombre}".'
+        )
+        return redirect('registrar_produccion')
+
+    return redirect('registrar_produccion')
+
+@admin_required
+def completar_produccion(request, log_id):
+    log = get_object_or_404(ProduccionLog, id=log_id)
+
+    if log.estado == 'completada':
+        messages.error(request, 'Esta producción ya fue completada.')
+        return redirect('registrar_produccion')
+
+    if request.method == 'POST':
+        def limpiar_decimal(valor, default=0):
+            try:
+                return float(str(valor).replace(',', '.').strip() or default)
+            except (ValueError, TypeError):
+                return default
+
+        cantidad_real = limpiar_decimal(request.POST.get('cantidad_real', 0))
+
+        if cantidad_real <= 0:
+            messages.error(
+                request, 'La cantidad real debe ser mayor a 0.'
+            )
+            return redirect('registrar_produccion')
+
+        producto       = log.producto
+        stock_anterior = float(producto.stock)
+        producto.stock = stock_anterior + cantidad_real
+        producto.save()
+
+        from decimal import Decimal
+        log.cantidad_real    = Decimal(str(cantidad_real))
+        log.estado           = 'completada'
+        log.fecha_completada = timezone.now()
+        log.save()
+
+        messages.success(
+            request,
+            f'✅ Producción completada: {cantidad_real} unidades de '
+            f'"{producto.nombre}" agregadas al stock. '
+            f'Stock: {stock_anterior} → {producto.stock}.'
+        )
+    return redirect('registrar_produccion')
+
+@admin_required
 def historial_produccion(request):
-    # Usamos el campo ultima_operacion de los insumos para rastrear
-    # En una versión más completa se agregaría un modelo ProduccionLog
-    from django.contrib.auth.models import User
+    producto_id  = request.GET.get('producto_id')
+    fecha_inicio = request.GET.get('fecha_inicio')
+    fecha_fin    = request.GET.get('fecha_fin')
+    estado_filtro = request.GET.get('estado', '')
+
+    logs = ProduccionLog.objects.select_related(
+        'producto__categoria', 'responsable'
+    ).all()
+
+    if producto_id:
+        logs = logs.filter(producto_id=producto_id)
+    if fecha_inicio:
+        logs = logs.filter(fecha__date__gte=fecha_inicio)
+    if fecha_fin:
+        logs = logs.filter(fecha__date__lte=fecha_fin)
+    if estado_filtro:
+        logs = logs.filter(estado=estado_filtro)
+
+    # POST — confirmar cantidad real
+    if request.method == 'POST':
+        log_id = request.POST.get('log_id')
+        log    = get_object_or_404(ProduccionLog, id=log_id)
+
+        if log.estado == 'completada':
+            messages.error(request, 'Esta producción ya fue completada.')
+            return redirect('historial_produccion')
+
+        try:
+            from decimal import Decimal
+            cantidad_real = Decimal(
+                str(request.POST.get('cantidad_real', 0)).replace(',', '.')
+            )
+            if cantidad_real <= 0:
+                raise ValueError
+        except Exception:
+            messages.error(
+                request,
+                'La cantidad real debe ser un número mayor a 0.'
+            )
+            return redirect('historial_produccion')
+
+        # Sumar al stock del producto terminado
+        producto = log.producto
+        stock_anterior   = producto.stock
+        producto.stock   = float(producto.stock) + float(cantidad_real)
+        producto.save()
+
+        log.cantidad_real    = cantidad_real
+        log.estado           = 'completada'
+        log.fecha_completada = timezone.now()
+        log.save()
+
+        messages.success(
+            request,
+            f'✅ Producción completada: {cantidad_real} unidades de '
+            f'"{producto.nombre}" sumadas al stock. '
+            f'Stock: {stock_anterior} → {producto.stock}.'
+        )
+        return redirect('historial_produccion')
+
     productos = Producto.objects.all().order_by('nombre')
-    return render(request, 'dashboard/admin/historial_produccion.html', {
-        'productos': productos,
-    })
+
+    # Totales del historial filtrado
+    total_planificado = sum(
+        float(l.cantidad_planificada) for l in logs
+    )
+    total_real = sum(
+        float(l.cantidad_real) for l in logs if l.cantidad_real
+    )
+
+    context = {
+        'logs':             logs,
+        'productos':        productos,
+        'producto_id':      producto_id,
+        'fecha_inicio':     fecha_inicio,
+        'fecha_fin':        fecha_fin,
+        'estado_filtro':    estado_filtro,
+        'total_planificado': total_planificado,
+        'total_real':        total_real,
+    }
+    return render(request, 'dashboard/admin/historial_produccion.html', context)

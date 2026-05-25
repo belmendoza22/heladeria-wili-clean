@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load filtros %}
 {% block title %}Cierre de Caja{% endblock %}
 
 {% block content %}
@@ -7,34 +8,54 @@
 
     {% if messages %}
         {% for message in messages %}
-            <div class="alert alert-danger">{{ message }}</div>
+            <div class="alert
+                {% if message.tags == 'success' %}alert-success
+                {% elif message.tags == 'warning' %}alert-warning
+                {% else %}alert-danger{% endif %}
+                alert-dismissible fade show">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
         {% endfor %}
     {% endif %}
 
     <!-- Resumen antes del cierre -->
     <div class="card mb-4">
         <div class="card-header bg-dark text-white">
-            <h5 class="mb-0">Resumen del día</h5>
+            <h5 class="mb-0">
+                <i class="bi bi-clipboard-data"></i> Resumen del turno
+            </h5>
         </div>
         <div class="card-body">
-            <div class="row text-center">
+            <div class="row text-center g-3">
                 <div class="col-4">
                     <p class="text-muted small mb-1">Monto inicial</p>
-                    <h5>G. {{ caja.monto_inicial }}</h5>
+                    <h5 class="mb-0">
+                        G. {{ caja.monto_inicial|guaranies }}
+                    </h5>
                 </div>
                 <div class="col-4">
                     <p class="text-muted small mb-1">Total ingresos</p>
-                    <h5 class="text-success">G. {{ total_ingresos }}</h5>
+                    <h5 class="text-success mb-0">
+                        G. {{ total_ingresos|guaranies }}
+                    </h5>
                 </div>
                 <div class="col-4">
                     <p class="text-muted small mb-1">Total egresos</p>
-                    <h5 class="text-danger">G. {{ total_egresos }}</h5>
+                    <h5 class="text-danger mb-0">
+                        G. {{ total_egresos|guaranies }}
+                    </h5>
                 </div>
             </div>
             <hr>
             <div class="text-center">
-                <p class="text-muted small mb-1">Balance según sistema</p>
-                <h3 class="text-primary">G. {{ balance_sistema }}</h3>
+                <p class="text-muted small mb-1">Balance esperado según sistema</p>
+                <h3 class="text-primary mb-0">
+                    G. {{ balance_sistema|guaranies }}
+                </h3>
+                <small class="text-muted">
+                    (inicial + ingresos - egresos)
+                </small>
             </div>
         </div>
     </div>
@@ -43,23 +64,35 @@
         {% csrf_token %}
         <div class="mb-4">
             <label class="form-label fw-bold">
+                <i class="bi bi-cash-coin"></i>
                 Monto contado en caja (Gs.)
             </label>
             <input type="number" name="monto_contado"
                    class="form-control form-control-lg"
-                   placeholder="0" min="0" required>
+                   placeholder="0" min="0" required autofocus>
             <small class="text-muted">
-                Ingresá el monto real que contaste en la caja.
+                Contá el efectivo físico e ingresá el total real.
+                Si hay diferencia quedará registrada en el resumen.
             </small>
+        </div>
+
+        <!-- Preview de diferencia en tiempo real -->
+        <div id="previewDiferencia" class="alert alert-secondary py-2 mb-4"
+             style="display:none;">
+            <i class="bi bi-calculator"></i>
+            Diferencia estimada:
+            <strong id="diffValor">G. 0</strong>
+            <span id="diffLabel"></span>
         </div>
 
         <div class="alert alert-warning">
             <i class="bi bi-exclamation-triangle-fill"></i>
-            Esta acción cerrará la caja y no podrás registrar más movimientos.
+            <strong>Atención:</strong> Esta acción cerrará la caja.
+            No podrás registrar más movimientos hasta abrir una nueva.
         </div>
 
         <div class="d-flex gap-2">
-            <button type="submit" class="btn btn-danger w-100"
+            <button type="submit" class="btn btn-danger w-100 btn-lg"
                     onclick="return confirm('¿Confirmar cierre de caja?')">
                 <i class="bi bi-lock-fill"></i> Confirmar cierre
             </button>
@@ -69,4 +102,38 @@
         </div>
     </form>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+var balanceSistema = {{ balance_sistema|guaranies }};
+
+document.querySelector('input[name="monto_contado"]')
+    .addEventListener('input', function() {
+        var contado = parseInt(this.value) || 0;
+        var diff = contado - balanceSistema;
+        var div = document.getElementById('previewDiferencia');
+        var valor = document.getElementById('diffValor');
+        var label = document.getElementById('diffLabel');
+
+        if (this.value === '') {
+            div.style.display = 'none';
+            return;
+        }
+
+        div.style.display = 'block';
+        valor.textContent = 'G. ' + Math.abs(diff).toLocaleString('es-PY');
+
+        if (diff > 0) {
+            div.className = 'alert alert-success py-2 mb-4';
+            label.textContent = '(sobrante)';
+        } else if (diff < 0) {
+            div.className = 'alert alert-danger py-2 mb-4';
+            label.textContent = '(faltante)';
+        } else {
+            div.className = 'alert alert-secondary py-2 mb-4';
+            label.textContent = '(sin diferencia)';
+        }
+    });
+</script>
 {% endblock %}

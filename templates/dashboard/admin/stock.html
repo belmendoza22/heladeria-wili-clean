@@ -20,7 +20,11 @@
 
     {% if messages %}
         {% for message in messages %}
-            <div class="alert alert-success alert-dismissible fade show">
+            <div class="alert
+                {% if message.tags == 'success' %}alert-success
+                {% elif message.tags == 'error' %}alert-danger
+                {% else %}alert-info{% endif %}
+                alert-dismissible fade show">
                 {{ message }}
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
@@ -33,7 +37,8 @@
             <strong>Insumos con stock bajo:</strong>
             {% for insumo in insumos_bajos %}
                 <span class="badge bg-warning text-dark me-1">
-                    {{ insumo.nombre }} ({{ insumo.stock_actual }} {{ insumo.unidad_medida.simbolo }})
+                    {{ insumo.nombre }}
+                    ({{ insumo.stock_display }} {{ insumo.unidad_medida.simbolo }})
                 </span>
             {% endfor %}
         </div>
@@ -48,18 +53,28 @@
                     <th>Unidad</th>
                     <th>Stock actual</th>
                     <th>Stock mínimo</th>
-                    <th>Precio unitario</th>
+                    <th>Precio unitario prom.</th>
+                    <th>Última operación</th>
                     <th>Estado</th>
                 </tr>
             </thead>
             <tbody>
                 {% for insumo in insumos %}
                 <tr>
-                    <td>{{ insumo.nombre }}</td>
+                    <td><strong>{{ insumo.nombre }}</strong></td>
                     <td>{{ insumo.unidad_medida.simbolo }}</td>
-                    <td>{{ insumo.stock_actual }}</td>
-                    <td>{{ insumo.stock_minimo }}</td>
-                    <td>G. {{ insumo.precio_unitario_promedio }}</td>
+                    <td>
+                        <strong>{{ insumo.stock_display }}</strong>
+                        {{ insumo.unidad_medida.simbolo }}
+                    </td>
+                    <td>
+                        {{ insumo.stock_minimo_display }}
+                        {{ insumo.unidad_medida.simbolo }}
+                    </td>
+                    <td>G. {{ insumo.precio_unitario_promedio|floatformat:0 }}</td>
+                    <td class="text-muted small">
+                        {{ insumo.ultima_operacion|default:"—" }}
+                    </td>
                     <td>
                         {% if insumo.stock_actual <= 0 %}
                             <span class="badge bg-danger">Agotado</span>
@@ -72,7 +87,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="6" class="text-center text-muted">
+                    <td colspan="7" class="text-center text-muted py-4">
                         No hay insumos registrados.
                     </td>
                 </tr>
@@ -100,11 +115,11 @@
                     <td>{{ compra.fecha|date:"d/m/Y H:i" }}</td>
                     <td>{{ compra.proveedor.nombre }}</td>
                     <td>{{ compra.empleado.get_full_name|default:compra.empleado.username }}</td>
-                    <td>G. {{ compra.total_compra }}</td>
+                    <td>G. {{ compra.total_compra|floatformat:0 }}</td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="5" class="text-center text-muted">
+                    <td colspan="5" class="text-center text-muted py-4">
                         No hay compras registradas.
                     </td>
                 </tr>

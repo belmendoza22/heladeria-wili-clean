@@ -1,14 +1,21 @@
 {% extends 'base.html' %}
+{% load filtros %}
 {% block title %}Registrar Producción{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1>Registrar Producción</h1>
-        <a href="{% url 'historial_produccion' %}"
-           class="btn btn-outline-secondary btn-sm">
-            <i class="bi bi-clock-history"></i> Historial
-        </a>
+        <div class="d-flex gap-2">
+            <a href="{% url 'historial_produccion' %}"
+               class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-clock-history"></i> Historial completo
+            </a>
+            <a href="{% url 'admin_dashboard' %}"
+               class="btn btn-secondary btn-sm">
+                <i class="bi bi-arrow-left"></i> Volver al panel
+            </a>
+        </div>
     </div>
 
     {% if messages %}
@@ -26,19 +33,33 @@
 
     <div class="alert alert-info">
         <i class="bi bi-info-circle-fill"></i>
-        Al registrar producción, el sistema descuenta los insumos usados
-        y suma las unidades producidas al stock de productos terminados.
+        <strong>Flujo de producción en 2 pasos:</strong>
+        <ol class="mb-0 mt-1">
+            <li>
+                <strong>Paso 1 — Acá:</strong> seleccioná el producto y
+                la cantidad planificada. El sistema descuenta los insumos
+                automáticamente.
+            </li>
+            <li>
+                <strong>Paso 2 — En el historial:</strong> cuando termine
+                la producción, registrá la cantidad real que salió.
+                Recién ahí se suma al stock disponible de productos.
+            </li>
+        </ol>
     </div>
 
-    <div class="row">
-        <!-- Formulario de producción -->
+    <div class="row g-4">
+
+        <!-- Columna izquierda: formulario + en proceso -->
         <div class="col-md-5">
-            <div class="card">
+
+            <!-- Formulario -->
+            <div class="card mb-4">
                 <div class="card-header text-white"
                      style="background-color:#9b87f5;">
                     <h5 class="mb-0">
                         <i class="bi bi-plus-circle"></i>
-                        Nueva producción
+                        Paso 1 — Iniciar producción
                     </h5>
                 </div>
                 <div class="card-body">
@@ -46,50 +67,75 @@
                         {% csrf_token %}
 
                         <div class="mb-3">
-                            <label class="form-label">Producto a producir</label>
+                            <label class="form-label fw-bold">
+                                Producto a producir
+                            </label>
                             <select name="producto" id="selectProducto"
                                     class="form-select" required>
                                 <option value="">Seleccioná un producto</option>
                                 {% for item in productos_con_info %}
-                                    <option value="{{ item.producto.id }}"
-                                            data-producible="{{ item.producible|default:0 }}"
-                                            data-limitante="{{ item.limitante|default:'' }}"
-                                            data-receta="{{ item.receta|length }}">
-                                        {{ item.producto.nombre }}
-                                        {% if item.producible is not None %}
-                                            (podés hacer {{ item.producible }})
-                                        {% else %}
-                                            (sin receta)
-                                        {% endif %}
-                                    </option>
+                                <option value="{{ item.producto.id }}"
+                                        data-producible="{{ item.producible|default:0 }}"
+                                        data-limitante="{{ item.limitante|default:'' }}"
+                                        data-receta="{{ item.receta|length }}">
+                                    {{ item.producto.nombre }}
+                                    {% if item.producible is not None %}
+                                        (max: {{ item.producible }})
+                                    {% else %}
+                                        (sin receta)
+                                    {% endif %}
+                                </option>
                                 {% endfor %}
                             </select>
                         </div>
 
-                        <div class="mb-3" id="infoProducible"
-                             style="display:none;">
+                        <!-- Info producible -->
+                        <div id="infoProducible" style="display:none;" class="mb-3">
                             <div class="alert alert-primary py-2 mb-0">
                                 <i class="bi bi-calculator"></i>
                                 Podés producir hasta
-                                <strong id="maxProducible">0</strong>
-                                unidades.
+                                <strong id="maxProducible">0</strong> unidades.
                                 <br>
                                 <small class="text-muted">
-                                    Limitado por:
+                                    Insumo limitante:
                                     <span id="insumoLimitante"></span>
                                 </small>
                             </div>
                         </div>
 
-                        <div class="mb-3">
-                            <label class="form-label">
-                                Cantidad a producir
+                        <!-- Detalle de receta dinámico -->
+                        <div id="detalleReceta" style="display:none;" class="mb-3">
+                            <label class="form-label fw-bold small">
+                                <i class="bi bi-list-check"></i>
+                                Insumos a descontar
                             </label>
-                            <input type="number"
-                                   name="cantidad_producida"
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Insumo</th>
+                                            <th>Por u.</th>
+                                            <th>Stock</th>
+                                            <th>Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tablaReceta"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">
+                                Cantidad planificada
+                            </label>
+                            <input type="number" name="cantidad_producida"
                                    id="cantidadProducida"
                                    class="form-control form-control-lg"
-                                   min="1" placeholder="0" required>
+                                   min="0.001" step="0.001"
+                                   placeholder="Ej: 10" required>
+                            <small class="text-muted">
+                                Admite decimales. Ej: 9.5 kg
+                            </small>
                         </div>
 
                         <div class="mb-4">
@@ -102,22 +148,106 @@
                             </textarea>
                         </div>
 
-                        <button type="submit" class="btn btn-success w-100 btn-lg">
-                            <i class="bi bi-check-circle-fill"></i>
-                            Registrar producción
+                        <button type="submit"
+                                class="btn btn-success w-100 btn-lg">
+                            <i class="bi bi-play-circle-fill"></i>
+                            Iniciar y descontar insumos
                         </button>
                     </form>
                 </div>
             </div>
+
+            <!-- Producciones en proceso -->
+            <div class="card border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <h6 class="mb-0">
+                        <i class="bi bi-clock-history"></i>
+                        En proceso
+                        {% if logs_en_proceso %}
+                            <span class="badge bg-dark ms-1">
+                                {{ logs_en_proceso|length }}
+                            </span>
+                        {% endif %}
+                    </h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Producto</th>
+                                    <th>Cant.</th>
+                                    <th>Inicio</th>
+                                    <th>Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log in logs_en_proceso %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ log.producto.nombre }}</strong>
+                                        <br>
+                                        <small class="text-muted">
+                                            {{ log.responsable.get_full_name|default:log.responsable.username }}
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-warning text-dark">
+                                            {{ log.cantidad_planificada }}
+                                        </span>
+                                    </td>
+                                    <td class="text-muted small">
+                                        {{ log.fecha|date:"d/m H:i" }}
+                                    </td>
+                                    <td>
+                                        <div class="d-flex gap-1 flex-wrap">
+                                            <!-- Editar -->
+                                            <button class="btn btn-warning btn-sm"
+                                                    onclick="abrirModalEditar(
+                                                        {{ log.id }},
+                                                        '{{ log.producto.nombre|escapejs }}',
+                                                        '{{ log.cantidad_planificada }}',
+                                                        '{{ log.observaciones|escapejs }}'
+                                                    )">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                            <!-- Completar -->
+                                            <button class="btn btn-success btn-sm"
+                                                    onclick="abrirModalReal(
+                                                        {{ log.id }},
+                                                        '{{ log.producto.nombre|escapejs }}',
+                                                        '{{ log.cantidad_planificada }}'
+                                                    )">
+                                                <i class="bi bi-check-lg"></i>
+                                                Completar
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4"
+                                        class="text-center text-muted py-3">
+                                        <i class="bi bi-check-all"></i>
+                                        Sin producciones en proceso
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
         </div>
 
-        <!-- Tabla de stock actual -->
+        <!-- Columna derecha: tabla de stock -->
         <div class="col-md-7">
             <div class="card">
                 <div class="card-header bg-dark text-white">
                     <h5 class="mb-0">
                         <i class="bi bi-clipboard-data"></i>
-                        Stock actual y producible
+                        Stock actual y capacidad de producción
                     </h5>
                 </div>
                 <div class="card-body p-0">
@@ -133,7 +263,9 @@
                             </thead>
                             <tbody>
                                 {% for item in productos_con_info %}
-                                <tr>
+                                <tr id="fila-{{ item.producto.id }}"
+                                    style="cursor:pointer;"
+                                    title="Clic para ver receta">
                                     <td>
                                         <strong>{{ item.producto.nombre }}</strong>
                                     </td>
@@ -142,7 +274,7 @@
                                             {% if item.producto.stock <= 0 %}bg-danger
                                             {% elif item.producto.stock <= 5 %}bg-warning text-dark
                                             {% else %}bg-success{% endif %}">
-                                            {{ item.producto.stock }}
+                                            {{ item.producto.stock }} u.
                                         </span>
                                     </td>
                                     <td>
@@ -154,7 +286,9 @@
                                                 {{ item.producible }}
                                             </span>
                                         {% else %}
-                                            <small class="text-muted">Sin receta</small>
+                                            <small class="text-muted">
+                                                Sin receta
+                                            </small>
                                         {% endif %}
                                     </td>
                                     <td>
@@ -163,12 +297,160 @@
                                         </small>
                                     </td>
                                 </tr>
+
+                                {% if item.receta %}
+                                <tr class="table-light"
+                                    id="receta-{{ item.producto.id }}"
+                                    style="display:none;">
+                                    <td colspan="4" class="ps-4">
+                                        <small>
+                                            <strong>Receta:</strong>
+                                            {% for r in item.receta %}
+                                                {{ r.cantidad }} {{ r.unidad }}
+                                                de {{ r.insumo }}
+                                                <span class="text-muted">
+                                                    (stock: {{ r.stock }}
+                                                    {{ r.unidad }})
+                                                </span>
+                                                {% if not forloop.last %}
+                                                    ·
+                                                {% endif %}
+                                            {% endfor %}
+                                        </small>
+                                    </td>
+                                </tr>
+                                {% endif %}
                                 {% endfor %}
                             </tbody>
                         </table>
                     </div>
                 </div>
             </div>
+
+            <div class="alert alert-secondary mt-3 py-2">
+                <small>
+                    <i class="bi bi-lightbulb"></i>
+                    Clic en una fila para ver la receta detallada.
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal completar producción -->
+<div class="modal fade" id="modalCantidadReal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header text-white"
+                 style="background-color:#9b87f5;">
+                <h5 class="modal-title">
+                    <i class="bi bi-check-circle"></i>
+                    Paso 2 — Completar producción
+                </h5>
+                <button type="button" class="btn-close btn-close-white"
+                        data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" id="formCompletarProduccion" action="">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="alert alert-info py-2">
+                        <strong id="modalNombreProductoReal"></strong>
+                        <br>
+                        <small>
+                            Planificado:
+                            <strong id="modalCantidadPlanif"></strong>
+                            unidades
+                        </small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">
+                            ¿Cuánto salió realmente?
+                        </label>
+                        <input type="number"
+                               name="cantidad_real"
+                               id="inputCantidadReal"
+                               class="form-control form-control-lg"
+                               min="0.001" step="0.001"
+                               placeholder="Ej: 9.6" required>
+                        <small class="text-muted">
+                            Esta cantidad se sumará al stock de productos
+                            terminados.
+                        </small>
+                    </div>
+
+                    <!-- Preview diferencia -->
+                    <div id="previewDiferencia" class="alert py-2"
+                         style="display:none;">
+                        <i class="bi bi-calculator"></i>
+                        Diferencia vs planificado:
+                        <strong id="textoDiferencia"></strong>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary"
+                            data-bs-dismiss="modal">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-success btn-lg">
+                        <i class="bi bi-check-circle"></i>
+                        Confirmar y actualizar stock
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal editar producción en proceso -->
+<div class="modal fade" id="modalEditarProduccion" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header text-white bg-warning text-dark">
+                <h5 class="modal-title">
+                    <i class="bi bi-pencil"></i> Editar producción
+                </h5>
+                <button type="button" class="btn-close"
+                        data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" id="formEditarProduccion"
+                  action="">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="alert alert-warning py-2">
+                        <strong id="editarNombreProducto"></strong>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">
+                            Nueva cantidad planificada
+                        </label>
+                        <input type="number"
+                               name="cantidad_planificada"
+                               id="editarCantidad"
+                               class="form-control form-control-lg"
+                               min="0.001" step="0.001" required>
+                        <small class="text-muted">
+                            El sistema ajustará los insumos según la diferencia.
+                        </small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Observaciones</label>
+                        <textarea name="observaciones"
+                                  id="editarObservaciones"
+                                  class="form-control" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary"
+                            data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="bi bi-check-circle"></i>
+                        Guardar cambios
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -176,20 +458,161 @@
 
 {% block extra_js %}
 <script>
-document.getElementById('selectProducto').addEventListener('change', function() {
-    var opt = this.options[this.selectedIndex];
-    var producible = opt.dataset.producible;
-    var limitante = opt.dataset.limitante;
-    var infoDiv = document.getElementById('infoProducible');
+const recetaData = {
+    {% for item in productos_con_info %}
+    "{{ item.producto.id }}": {
+        producible: {{ item.producible|default:0 }},
+        limitante:  "{{ item.limitante|default:'' }}",
+        receta: [
+            {% for r in item.receta %}
+            {
+                insumo:   "{{ r.insumo|escapejs }}",
+                cantidad: {{ r.cantidad }},
+                unidad:   "{{ r.unidad }}",
+                stock:    {{ r.stock }}
+            }{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ]
+    }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+};
 
-    if (this.value && producible !== undefined) {
-        document.getElementById('maxProducible').textContent = producible;
-        document.getElementById('insumoLimitante').textContent = limitante || 'N/A';
-        infoDiv.style.display = 'block';
-        document.getElementById('cantidadProducida').max = producible;
-    } else {
-        infoDiv.style.display = 'none';
+// Cambio de producto
+document.getElementById('selectProducto').addEventListener('change', function() {
+    const id        = this.value;
+    const infoDiv   = document.getElementById('infoProducible');
+    const recetaDiv = document.getElementById('detalleReceta');
+    const tabla     = document.getElementById('tablaReceta');
+
+    if (!id || !recetaData[id]) {
+        infoDiv.style.display   = 'none';
+        recetaDiv.style.display = 'none';
+        return;
     }
+
+    const data = recetaData[id];
+    document.getElementById('maxProducible').textContent   = data.producible;
+    document.getElementById('insumoLimitante').textContent = data.limitante || 'N/A';
+    document.getElementById('cantidadProducida').max       = data.producible;
+    infoDiv.style.display = 'block';
+
+    if (data.receta.length > 0) {
+        tabla.innerHTML = '';
+        data.receta.forEach(function(r) {
+            const tr  = document.createElement('tr');
+            const ok  = r.stock >= r.cantidad;
+            tr.innerHTML = `
+                <td>${r.insumo}</td>
+                <td>${r.cantidad} ${r.unidad}</td>
+                <td>
+                    <span class="badge ${ok ? 'bg-success' : 'bg-danger'}">
+                        ${r.stock} ${r.unidad}
+                    </span>
+                </td>
+                <td id="total-${r.insumo.replace(/\s/g,'_')}">
+                    — ${r.unidad}
+                </td>`;
+            tabla.appendChild(tr);
+        });
+        recetaDiv.style.display = 'block';
+    } else {
+        recetaDiv.style.display = 'none';
+    }
+});
+
+// Actualizar totales al cambiar cantidad
+document.getElementById('cantidadProducida').addEventListener('input', function() {
+    const id       = document.getElementById('selectProducto').value;
+    const cantidad = parseFloat(this.value) || 0;
+    if (!id || !recetaData[id]) return;
+
+    recetaData[id].receta.forEach(function(r) {
+        const key  = r.insumo.replace(/\s/g, '_');
+        const cell = document.getElementById('total-' + key);
+        if (cell) {
+            const total = (r.cantidad * cantidad).toFixed(3);
+            const ok    = r.stock >= r.cantidad * cantidad;
+            cell.innerHTML = `
+                <span class="fw-bold ${ok ? 'text-success' : 'text-danger'}">
+                    ${total} ${r.unidad}
+                </span>`;
+        }
+    });
+});
+
+// Click en fila para ver/ocultar receta
+document.querySelectorAll('[id^="fila-"]').forEach(function(fila) {
+    fila.addEventListener('click', function() {
+        const id         = this.id.replace('fila-', '');
+        const recetaFila = document.getElementById('receta-' + id);
+        if (recetaFila) {
+            recetaFila.style.display =
+                recetaFila.style.display === 'none' ? '' : 'none';
+        }
+    });
+});
+
+// Modal cantidad real
+var planificadoModal = 0;
+
+function abrirModalReal(logId, nombre, planificado) {
+    planificadoModal = parseFloat(planificado);
+    document.getElementById('modalNombreProductoReal').textContent = nombre;
+    document.getElementById('modalCantidadPlanif').textContent     = planificado;
+    document.getElementById('inputCantidadReal').value             = '';
+    document.getElementById('previewDiferencia').style.display     = 'none';
+
+    // Apuntar el form a la URL correcta con el log_id
+    document.getElementById('formCompletarProduccion').action =
+        '/panel/produccion/completar/' + logId + '/';
+
+    bootstrap.Modal.getOrCreateInstance(
+        document.getElementById('modalCantidadReal')
+    ).show();
+}
+
+document.getElementById('inputCantidadReal').addEventListener('input', function() {
+    const real = parseFloat(this.value) || 0;
+    const diff = real - planificadoModal;
+    const div  = document.getElementById('previewDiferencia');
+    const txt  = document.getElementById('textoDiferencia');
+
+    if (!this.value) { div.style.display = 'none'; return; }
+
+    div.style.display = 'block';
+    txt.textContent   = (diff >= 0 ? '+' : '') + diff.toFixed(3) + ' unidades';
+    div.className     = diff >= 0
+        ? 'alert alert-success py-2'
+        : 'alert alert-warning py-2';
+});
+
+// Modal editar
+function abrirModalEditar(logId, nombre, cantidad, observaciones) {
+    document.getElementById('editarNombreProducto').textContent = nombre;
+    document.getElementById('editarCantidad').value            = cantidad;
+    document.getElementById('editarObservaciones').value       = observaciones;
+    document.getElementById('formEditarProduccion').action     =
+        '/panel/produccion/editar/' + logId + '/';
+
+    bootstrap.Modal.getOrCreateInstance(
+        document.getElementById('modalEditarProduccion')
+    ).show();
+}
+
+// Preview diferencia en tiempo real
+document.getElementById('inputCantidadReal').addEventListener('input', function() {
+    const real = parseFloat(this.value) || 0;
+    const diff = real - planificadoModal;
+    const div  = document.getElementById('previewDiferencia');
+    const txt  = document.getElementById('textoDiferencia');
+
+    if (!this.value) { div.style.display = 'none'; return; }
+
+    div.style.display = 'block';
+    txt.textContent   = (diff >= 0 ? '+' : '') + diff.toFixed(3) + ' unidades';
+    div.className = diff >= 0
+        ? 'alert alert-success py-2'
+        : 'alert alert-warning py-2';
 });
 </script>
 {% endblock %}

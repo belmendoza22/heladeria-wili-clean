@@ -18,38 +18,71 @@ class Sabor(models.Model):
     precio_extra = models.DecimalField(max_digits=6, decimal_places=2, default=0)
     descripcion = models.TextField(blank=True)
     imagen = models.ImageField(upload_to='images/Sabores/', blank=True, null=True)
-    categoria = models.ForeignKey(
-        Categoria,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='sabores'
-    )
+    categoria = models.ForeignKey(Categoria,on_delete=models.SET_NULL,null=True,blank=True,related_name='sabores')
+    categorias_extra = models.ManyToManyField(Categoria,blank=True,related_name='sabores_extra',help_text='sabores')
     slug = models.SlugField(unique=True)
     activo = models.BooleanField(default=True)
+    gramos_por_porcion = models.DecimalField(max_digits=8, decimal_places=2, default=0,
+        help_text='Gramos que se descuentan por porción al pedir este sabor. '
+                  'Se puede sobreescribir por categoría de tamaño.')
+    insumo_stock = models.ForeignKey('Insumo',on_delete=models.SET_NULL,null=True, blank=True,
+        related_name='sabores_asociados',help_text='Insumo de producción que representa este sabor '
+                  '(para verificar disponibilidad)')
+
+    def __str__(self):
+        return self.nombre
+
+    class Subcategoria(models.Model):
+        nombre    = models.CharField(max_length=100)
+        categoria = models.ForeignKey(
+            Categoria,
+            on_delete=models.CASCADE,
+            related_name='subcategorias'
+        )
+        activo    = models.BooleanField(default=True)
+
+        class Meta:
+            ordering = ['nombre']
+
+        def __str__(self):
+            return f'{self.categoria.nombre} → {self.nombre}'
+
+
+class Addon(models.Model):
+    nombre = models.CharField(max_length=100)
+    precio_extra = models.DecimalField(
+        max_digits=10, decimal_places=0, default=0,
+        help_text='Costo extra para el cliente (puede ser 0)'
+    )
+    insumo = models.ForeignKey(
+        'Insumo',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='addons',
+        help_text='Insumo que se descuenta al elegir este agregado'
+    )
+    categorias = models.ManyToManyField('Categoria',blank=True,related_name='addons',help_text='Categorías donde se muestra este agregado. '
+                                        'Si no seleccionás ninguna, aparece en todas.')
+    cantidad_descontar = models.DecimalField(
+        max_digits=10, decimal_places=4, default=0,
+        help_text='Cantidad a descontar del insumo (en unidad base, ej: gramos)'
+    )
+    activo = models.BooleanField(default=True)
+    imagen = models.ImageField(upload_to='images/Addons/', blank=True, null=True)
 
     def __str__(self):
         return self.nombre
 
 
-class Addon(models.Model):
-    name = models.CharField(max_length=100)
-    price = models.DecimalField(max_digits=10, decimal_places=2)
-
-    def __str__(self):
-        return self.name
-
-
 class Tamano(models.Model):
     nombre = models.CharField(max_length=50)
     slug = models.SlugField(unique=True)
-    categoria = models.ForeignKey(
-        Categoria,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True
-    )
+    categoria = models.ForeignKey(Categoria,on_delete=models.SET_NULL,null=True,blank=True)
     precio_extra = models.DecimalField(max_digits=10, decimal_places=0, default=0)
+    max_sabores = models.PositiveIntegerField(default=1,
+        help_text='Cantidad máxima de sabores que puede elegir el cliente')
+    solo_produccion = models.BooleanField(default=False,
+        help_text='Si está marcado, este tamaño no se muestra a clientes')
     activo = models.BooleanField(default=True)
 
     def __str__(self):
@@ -104,7 +137,8 @@ class CartItem(models.Model):
     precio_unitario = models.DecimalField(max_digits=10, decimal_places=0)
 
     def __str__(self):
-        return f"{self.cantidad} x {self.producto.nombre} ({self.tamano.nombre})"
+        tamano_str = self.tamano.nombre if self.tamano else 'sin tamaño'
+        return f"{self.cantidad} x {self.producto.nombre} ({tamano_str})"
 
 
 # Modelos de perfil de usuario
@@ -162,9 +196,7 @@ class Insumo(models.Model):
     stock_minimo = models.DecimalField(max_digits=10, decimal_places=0, default=0)
     precio_unitario_promedio = models.DecimalField(max_digits=10, decimal_places=3, default=0)
     ultima_actualizacion = models.DateTimeField(auto_now=True)
-    ultima_operacion = models.CharField(
-        max_length=50, blank=True, default=''
-    )
+    ultima_operacion = models.CharField(max_length=200, blank=True, default='')
 
     def stock_en_unidad_display(self):
         """Retorna el stock convertido a la unidad de medida"""
@@ -177,6 +209,20 @@ class Insumo(models.Model):
     def convertir_de_base(self, cantidad_base):
         """Convierte de unidad base a la unidad del insumo"""
         return cantidad_base / self.unidad_medida.factor_conversion
+    
+    @property
+    def stock_display(self):
+        """Stock en la unidad legible (ej: kg en vez de gramos)"""
+        if self.unidad_medida.factor_conversion:
+            return round(self.stock_actual / self.unidad_medida.factor_conversion, 2)
+        return self.stock_actual
+
+    @property
+    def stock_minimo_display(self):
+        """Stock mínimo en la unidad legible"""
+        if self.unidad_medida.factor_conversion:
+            return round(self.stock_minimo / self.unidad_medida.factor_conversion, 2)
+        return self.stock_minimo
     
     def __str__(self):
         return self.nombre
@@ -196,13 +242,20 @@ class Proveedor(models.Model):
 class Receta(models.Model):
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE, related_name='recetas')
     insumo = models.ForeignKey(Insumo, on_delete=models.PROTECT)
-    cantidad_requerida = models.DecimalField(max_digits=10, decimal_places=0)
+    cantidad_requerida = models.DecimalField(max_digits=10, decimal_places=4)
 
     class Meta:
         unique_together = ('producto', 'insumo')
 
     def __str__(self):
-        return f"{self.producto.nombre} necesita {self.cantidad_requerida} {self.insumo.unidad_medida.simbolo} de {self.insumo.nombre}"
+        cantidad_display = round(
+            self.cantidad_requerida / self.insumo.unidad_medida.factor_conversion, 4
+        )
+        return (
+            f"{self.producto.nombre} necesita "
+            f"{cantidad_display} {self.insumo.unidad_medida.simbolo} "
+            f"de {self.insumo.nombre}"
+        )
 
 
 # Modelos de Compras
@@ -225,22 +278,23 @@ class DetalleCompra(models.Model):
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
+        from decimal import Decimal
         insumo = self.insumo
-        # La cantidad se ingresa en la unidad del insumo (ej: kg)
-        # Se almacena internamente en unidad base (ej: gramos)
-        cantidad_base = self.cantidad * insumo.unidad_medida.factor_conversion
-        stock_anterior = insumo.stock_actual
-        precio_anterior = insumo.precio_unitario_promedio
-        nuevo_stock = stock_anterior + cantidad_base
+        cantidad_base  = Decimal(str(self.cantidad)) * insumo.unidad_medida.factor_conversion
+        stock_anterior = Decimal(str(insumo.stock_actual))
+        precio_anterior = Decimal(str(insumo.precio_unitario_promedio))
+        nuevo_stock    = stock_anterior + cantidad_base
 
         if nuevo_stock > 0:
             insumo.precio_unitario_promedio = (
                 (stock_anterior * precio_anterior) +
-                (cantidad_base * self.precio_unitario)
+                (cantidad_base  * Decimal(str(self.precio_unitario)))
             ) / nuevo_stock
 
-        insumo.stock_actual = nuevo_stock
-        insumo.ultima_operacion = f'Compra: +{self.cantidad} {insumo.unidad_medida.simbolo}'
+        insumo.stock_actual     = nuevo_stock
+        insumo.ultima_operacion = (
+            f'Compra: +{self.cantidad} {insumo.unidad_medida.simbolo}'
+        )
         insumo.save()
 
     def __str__(self):
@@ -365,9 +419,9 @@ class Egreso(models.Model):
     motivo = models.CharField(max_length=100)
     descripcion = models.TextField(blank=True)
     fecha = models.DateTimeField(auto_now_add=True)
-    tipo_egreso = models.CharField(
-    max_length=20, choices=TIPOS_EGRESO, default='gasto_operativo'
-    )
+    tipo_egreso = models.CharField(max_length=20, choices=TIPOS_EGRESO, default='gasto_operativo')
+    nro_comprobante = models.CharField(max_length=50, blank=True, default='',help_text='Número de factura o comprobante')
+    proveedor = models.ForeignKey(Proveedor,on_delete=models.SET_NULL,null=True, blank=True,related_name='egresos',help_text='Proveedor asociado al egreso (opcional)')
 
     def __str__(self):
         return f"Egreso ${self.monto} - {self.motivo}"
@@ -391,4 +445,43 @@ class Promocion(models.Model):
     def __str__(self):
         return self.nombre
 
+# Modelo de registro de producción
+class ProduccionLog(models.Model):
+    ESTADOS = [
+        ('en_proceso', 'En proceso'),
+        ('completada', 'Completada'),
+    ]
+    producto = models.ForeignKey(
+        Producto,
+        on_delete=models.PROTECT,
+        related_name='producciones'
+    )
+    cantidad_planificada = models.DecimalField(
+        max_digits=10, decimal_places=3,
+        help_text='Cantidad que se planificó producir'
+    )
+    cantidad_real = models.DecimalField(
+        max_digits=10, decimal_places=3,
+        null=True, blank=True,
+        help_text='Cantidad real que salió de la producción'
+    )
+    responsable = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name='producciones_registradas'
+    )
+    fecha = models.DateTimeField(auto_now_add=True)
+    fecha_completada = models.DateTimeField(null=True, blank=True)
+    observaciones = models.TextField(blank=True)
+    estado = models.CharField(
+        max_length=20, choices=ESTADOS, default='en_proceso'
+    )
 
+    class Meta:
+        ordering = ['-fecha']
+
+    def __str__(self):
+        return (
+            f"Producción de {self.cantidad_planificada} x "
+            f"{self.producto.nombre} — {self.fecha.strftime('%d/%m/%Y %H:%M')}"
+        )

@@ -113,7 +113,15 @@ urlpatterns = [
     
     # Producción
     path('panel/produccion/', views.registrar_produccion, name='registrar_produccion'),
+    path('panel/produccion/editar/<int:log_id>/', views.editar_produccion, name='editar_produccion'),
+    path('panel/produccion/completar/<int:log_id>/',views.completar_produccion, name='completar_produccion'),
     path('panel/produccion/historial/', views.historial_produccion, name='historial_produccion'),
+    
+    # ABM Addons
+    path('panel/addons/', views.gestion_addons, name='gestion_addons'),
+    path('panel/addons/crear/', views.crear_addon, name='crear_addon'),
+    path('panel/addons/editar/<int:addon_id>/', views.editar_addon, name='editar_addon'),
+    path('panel/addons/eliminar/<int:addon_id>/', views.eliminar_addon, name='eliminar_addon'),
 ]
 
 if settings.DEBUG:

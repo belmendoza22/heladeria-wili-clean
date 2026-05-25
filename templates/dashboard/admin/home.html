@@ -1,13 +1,23 @@
 {% extends 'base.html' %}
+{% load filtros %}
 {% block title %}Panel de Administración{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
-    <h1 class="mb-4">Panel de Administración</h1>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Panel de Administración</h1>
+        <span class="text-muted small">
+            <i class="bi bi-clock"></i>
+            Hoy: {{ pedidos_hoy }} pedido(s)
+        </span>
+    </div>
 
     {% if messages %}
         {% for message in messages %}
-            <div class="alert alert-success alert-dismissible fade show">
+            <div class="alert
+                {% if message.tags == 'success' %}alert-success
+                {% else %}alert-danger{% endif %}
+                alert-dismissible fade show">
                 {{ message }}
                 <button type="button" class="btn-close"
                         data-bs-dismiss="alert"></button>
@@ -20,11 +30,6 @@
         <i class="bi bi-exclamation-triangle-fill fs-5"></i>
         <div>
             <strong>{{ alertas_count }} insumo(s) con stock bajo.</strong>
-            {% for alerta in alertas_stock %}
-                <span class="badge bg-warning text-dark me-1">
-                    {{ alerta.nombre }}: {{ alerta.stock_actual }}
-                </span>
-            {% endfor %}
             <a href="{% url 'control_stock' %}" class="alert-link ms-2">
                 Ver inventario
             </a>
@@ -33,190 +38,372 @@
     {% endif %}
 
     <!-- Tarjetas de resumen -->
-    <div class="row mb-4">
+    <div class="row mb-4 g-3">
         <div class="col-md-3">
-            <div class="card text-white mb-3"
+            <div class="card text-white h-100"
                  style="background-color:#9b87f5;">
                 <div class="card-body">
-                    <h5 class="card-title">Pedidos hoy</h5>
-                    <p class="card-text display-6">{{ pedidos_hoy }}</p>
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6 class="card-title opacity-75">Pedidos hoy</h6>
+                            <p class="display-6 mb-0 fw-bold">
+                                {{ pedidos_hoy }}
+                            </p>
+                        </div>
+                        <i class="bi bi-bag fs-2 opacity-50"></i>
+                    </div>
+                    <small class="opacity-75">
+                        Ventas hoy: {{ ventas_hoy|guaranies }}
+                    </small>
+                </div>
+                <div class="card-footer border-0 bg-transparent">
+                    <a href="{% url 'gestion_pedidos' %}"
+                       class="text-white small">
+                        Ver pedidos →
+                    </a>
                 </div>
             </div>
         </div>
+
         <div class="col-md-3">
-            <div class="card text-white bg-warning mb-3">
+            <div class="card text-dark h-100 bg-warning">
                 <div class="card-body">
-                    <h5 class="card-title">Pendientes</h5>
-                    <p class="card-text display-6">{{ pedidos_pendientes }}</p>
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6 class="card-title opacity-75">Pendientes</h6>
+                            <p class="display-6 mb-0 fw-bold">
+                                {{ pedidos_pendientes }}
+                            </p>
+                        </div>
+                        <i class="bi bi-clock fs-2 opacity-50"></i>
+                    </div>
+                    <small class="opacity-75">
+                        Requieren atención
+                    </small>
+                </div>
+                <div class="card-footer border-0 bg-transparent">
+                    <a href="{% url 'gestion_pedidos' %}?estado=pendiente"
+                       class="text-dark small">
+                        Ver pendientes →
+                    </a>
                 </div>
             </div>
         </div>
+
         <div class="col-md-3">
-            <div class="card text-white mb-3
+            <div class="card text-white h-100
                 {% if insumos_bajos > 0 %}bg-danger{% else %}bg-success{% endif %}">
                 <div class="card-body">
-                    <h5 class="card-title">Stock bajo</h5>
-                    <p class="card-text display-6">{{ insumos_bajos }}</p>
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6 class="card-title opacity-75">Stock bajo</h6>
+                            <p class="display-6 mb-0 fw-bold">
+                                {{ insumos_bajos }}
+                            </p>
+                        </div>
+                        <i class="bi bi-archive fs-2 opacity-50"></i>
+                    </div>
+                    <small class="opacity-75">
+                        Insumos bajo mínimo
+                    </small>
+                </div>
+                <div class="card-footer border-0 bg-transparent">
+                    <a href="{% url 'control_stock' %}" class="text-white small">
+                        Ver stock →
+                    </a>
                 </div>
             </div>
         </div>
+
         <div class="col-md-3">
-            <div class="card text-white bg-dark mb-3">
+            <div class="card text-white h-100 bg-dark">
                 <div class="card-body">
-                    <h5 class="card-title">Usuarios</h5>
-                    <p class="card-text display-6">{{ total_usuarios }}</p>
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6 class="card-title opacity-75">En producción</h6>
+                            <p class="display-6 mb-0 fw-bold">
+                                {{ producciones_proceso }}
+                            </p>
+                        </div>
+                        <i class="bi bi-gear-fill fs-2 opacity-50"></i>
+                    </div>
+                    <small class="opacity-75">
+                        Lotes en proceso
+                    </small>
+                </div>
+                <div class="card-footer border-0 bg-transparent">
+                    <a href="{% url 'registrar_produccion' %}"
+                       class="text-white small">
+                        Ver producción →
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Caja activa -->
+    <div class="row mb-4 g-3">
+        <div class="col-md-8">
+            {% if caja_abierta %}
+            <div class="card border-success h-100">
+                <div class="card-header bg-success text-white d-flex
+                            justify-content-between align-items-center">
+                    <h6 class="mb-0">
+                        <i class="bi bi-cash-stack"></i>
+                        Caja #{{ caja_abierta.id }} — Abierta
+                    </h6>
+                    <small>
+                        Cajero:
+                        {{ caja_abierta.empleado_cajero.get_full_name|default:caja_abierta.empleado_cajero.username }}
+                        — {{ caja_abierta.fecha_apertura|date:"H:i" }} hs
+                    </small>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center g-3">
+                        <div class="col-3">
+                            <small class="text-muted d-block">Inicial</small>
+                            <strong>
+                                {{ caja_abierta.monto_inicial|guaranies }}
+                            </strong>
+                        </div>
+                        <div class="col-3">
+                            <small class="text-muted d-block">Ingresos</small>
+                            <strong class="text-success">
+                                {{ total_ingresos|guaranies }}
+                            </strong>
+                        </div>
+                        <div class="col-3">
+                            <small class="text-muted d-block">Egresos</small>
+                            <strong class="text-danger">
+                                {{ total_egresos|guaranies }}
+                            </strong>
+                        </div>
+                        <div class="col-3">
+                            <small class="text-muted d-block">Balance</small>
+                            <strong class="
+                                {% if balance_caja >= 0 %}text-primary
+                                {% else %}text-danger{% endif %} fs-5">
+                                {{ balance_caja|guaranies }}
+                            </strong>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-transparent d-flex gap-2">
+                    <a href="{% url 'gestion_caja' %}"
+                       class="btn btn-sm btn-success">
+                        <i class="bi bi-eye"></i> Ver caja
+                    </a>
+                    <a href="{% url 'registrar_ingreso' %}"
+                       class="btn btn-sm btn-outline-success">
+                        <i class="bi bi-plus"></i> Ingreso
+                    </a>
+                    <a href="{% url 'registrar_egreso' %}"
+                       class="btn btn-sm btn-outline-danger">
+                        <i class="bi bi-dash"></i> Egreso
+                    </a>
+                </div>
+            </div>
+            {% else %}
+            <div class="card border-warning h-100">
+                <div class="card-body text-center py-4">
+                    <i class="bi bi-cash-register"
+                       style="font-size:3rem; color:#EF9F27;"></i>
+                    <h5 class="mt-3 text-muted">No hay caja abierta</h5>
+                    <p class="text-muted small">
+                        Ningún cajero ha abierto la caja hoy.
+                    </p>
+                    <a href="{% url 'apertura_caja' %}"
+                       class="btn btn-warning mt-2">
+                        <i class="bi bi-unlock-fill"></i> Abrir caja
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Últimos pedidos del día -->
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-header bg-dark text-white">
+                    <h6 class="mb-0">
+                        <i class="bi bi-clock-history"></i>
+                        Últimos pedidos hoy
+                    </h6>
+                </div>
+                <div class="card-body p-0">
+                    <ul class="list-group list-group-flush">
+                        {% for pedido in ultimos_pedidos %}
+                        <li class="list-group-item d-flex
+                                   justify-content-between align-items-center
+                                   py-2">
+                            <div>
+                                <small class="fw-bold">
+                                    #{{ pedido.id }}
+                                    {% if pedido.cliente %}
+                                        — {{ pedido.cliente.first_name|default:pedido.cliente.username }}
+                                    {% endif %}
+                                </small>
+                                <br>
+                                <small class="text-muted">
+                                    {{ pedido.fecha_pedido|date:"H:i" }} hs
+                                </small>
+                            </div>
+                            <div class="text-end">
+                                <span class="badge
+                                    {% if pedido.estado == 'pendiente' %}bg-secondary
+                                    {% elif pedido.estado == 'confirmado' %}bg-primary
+                                    {% elif pedido.estado == 'en_preparacion' %}bg-warning text-dark
+                                    {% elif pedido.estado == 'listo' %}bg-success
+                                    {% elif pedido.estado == 'entregado' %}bg-dark
+                                    {% else %}bg-danger{% endif %}">
+                                    {{ pedido.get_estado_display }}
+                                </span>
+                                <br>
+                                <small class="text-muted">
+                                    {{ pedido.total|guaranies }}
+                                </small>
+                            </div>
+                        </li>
+                        {% empty %}
+                        <li class="list-group-item text-center text-muted py-4">
+                            <i class="bi bi-inbox"></i>
+                            Sin pedidos hoy
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                <div class="card-footer bg-transparent">
+                    <a href="{% url 'gestion_pedidos' %}"
+                       class="btn btn-sm btn-outline-dark w-100">
+                        Ver todos los pedidos
+                    </a>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Accesos rápidos -->
-    <h5 class="mb-3">Gestión</h5>
-    <div class="row mb-4">
-        <div class="col-md-3 mb-3">
-            <div class="card panel-card h-100">
-                <div class="card-body text-center py-4">
-                    <i class="bi bi-box-seam fs-1"
+    <h5 class="mb-3">Accesos rápidos</h5>
+    <div class="row g-3">
+        <div class="col-md-2 col-4">
+            <a href="{% url 'gestion_productos' %}"
+               class="text-decoration-none">
+                <div class="card panel-card text-center py-3">
+                    <i class="bi bi-box-seam fs-2"
                        style="color:#9b87f5;"></i>
-                    <h6 class="mt-2">Productos</h6>
-                    <a href="{% url 'gestion_productos' %}"
-                       class="btn btn-sm btn-primary mt-2">
-                        Gestionar
-                    </a>
+                    <small class="mt-1 d-block">Productos</small>
                 </div>
-            </div>
+            </a>
         </div>
-        <div class="col-md-3 mb-3">
-            <div class="card panel-card h-100">
-                <div class="card-body text-center py-4">
-                    <i class="bi bi-archive fs-1"
+        <div class="col-md-2 col-4">
+            <a href="{% url 'gestion_insumos' %}"
+               class="text-decoration-none">
+                <div class="card panel-card text-center py-3">
+                    <i class="bi bi-archive fs-2"
                        style="color:#1D9E75;"></i>
-                    <h6 class="mt-2">Insumos</h6>
-                    <a href="{% url 'gestion_insumos' %}"
-                       class="btn btn-sm btn-success mt-2">
-                        Gestionar
-                    </a>
+                    <small class="mt-1 d-block">Insumos</small>
                 </div>
-            </div>
+            </a>
         </div>
-        <div class="col-md-3 mb-3">
-            <div class="card panel-card h-100">
-                <div class="card-body text-center py-4">
-                    <i class="bi bi-bar-chart fs-1"
-                       style="color:#EF9F27;"></i>
-                    <h6 class="mt-2">Stock</h6>
-                    <a href="{% url 'control_stock' %}"
-                       class="btn btn-sm btn-warning mt-2">
-                        Ver stock
-                    </a>
+        <div class="col-md-2 col-4">
+            <a href="{% url 'gestion_recetas' %}"
+               class="text-decoration-none">
+                <div class="card panel-card text-center py-3">
+                    <i class="bi bi-journal-text fs-2"
+                       style="color:#7b68ee;"></i>
+                    <small class="mt-1 d-block">Recetas</small>
                 </div>
-            </div>
+            </a>
         </div>
-        <div class="col-md-3 mb-3">
-            <div class="card panel-card h-100">
-                <div class="card-body text-center py-4">
-                    <i class="bi bi-truck fs-1"
-                       style="color:#378ADD;"></i>
-                    <h6 class="mt-2">Proveedores</h6>
-                    <a href="{% url 'gestion_proveedores' %}"
-                       class="btn btn-sm btn-info mt-2">
-                        Gestionar
-                    </a>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3 mb-3">
-            <div class="card panel-card h-100">
-                <div class="card-body text-center py-4">
-                    <i class="bi bi-bag fs-1"
+        <div class="col-md-2 col-4">
+            <a href="{% url 'registrar_produccion' %}"
+               class="text-decoration-none">
+                <div class="card panel-card text-center py-3">
+                    <i class="bi bi-gear-fill fs-2"
                        style="color:#E24B4A;"></i>
-                    <h6 class="mt-2">Pedidos</h6>
-                    <a href="{% url 'gestion_pedidos' %}"
-                       class="btn btn-sm btn-danger mt-2">
-                        Ver pedidos
-                    </a>
+                    <small class="mt-1 d-block">Producción</small>
                 </div>
-            </div>
+            </a>
         </div>
-        <div class="col-md-3 mb-3">
-            <div class="card panel-card h-100">
-                <div class="card-body text-center py-4">
-                    <i class="bi bi-people fs-1"
-                       style="color:#9b87f5;"></i>
-                    <h6 class="mt-2">Usuarios</h6>
-                    <a href="{% url 'gestion_usuarios' %}"
-                       class="btn btn-sm mt-2"
-                       style="background-color:#9b87f5; color:white;">
-                        Gestionar
-                    </a>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3 mb-3">
-            <div class="card panel-card h-100">
-                <div class="card-body text-center py-4">
-                    <i class="bi bi-tag fs-1"
-                       style="color:#1D9E75;"></i>
-                    <h6 class="mt-2">Promociones</h6>
-                    <a href="{% url 'gestion_promociones' %}"
-                       class="btn btn-sm btn-success mt-2">
-                        Gestionar
-                    </a>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3 mb-3">
-            <div class="card panel-card h-100">
-                <div class="card-body text-center py-4">
-                    <i class="bi bi-graph-up fs-1"
+        <div class="col-md-2 col-4">
+            <a href="{% url 'control_stock' %}"
+               class="text-decoration-none">
+                <div class="card panel-card text-center py-3">
+                    <i class="bi bi-bar-chart fs-2"
                        style="color:#EF9F27;"></i>
-                    <h6 class="mt-2">Reportes</h6>
-                    <a href="{% url 'reportes' %}"
-                       class="btn btn-sm btn-warning mt-2">
-                        Ver reportes
-                    </a>
+                    <small class="mt-1 d-block">Stock</small>
                 </div>
-            </div>
+            </a>
         </div>
-        <div class="col-md-3 mb-3">
-            <div class="card panel-card h-100">
-                <div class="card-body text-center py-4">
-                    <i class="bi bi-clipboard-data fs-1" style="color:#1D9E75;"></i>
-                    <h6 class="mt-2">Stock producible</h6>
-                    <a href="{% url 'stock_producible' %}"
-                    class="btn btn-sm btn-success mt-2">
-                        Ver
-                    </a>
+        <div class="col-md-2 col-4">
+            <a href="{% url 'gestion_proveedores' %}"
+               class="text-decoration-none">
+                <div class="card panel-card text-center py-3">
+                    <i class="bi bi-truck fs-2"
+                       style="color:#378ADD;"></i>
+                    <small class="mt-1 d-block">Proveedores</small>
                 </div>
-            </div>
+            </a>
         </div>
-        <div class="col-md-3 mb-3">
-            <div class="card panel-card h-100">
-                <div class="card-body text-center py-4">
-                    <i class="bi bi-journal-text fs-1" style="color:#7b68ee;"></i>
-                    <h6 class="mt-2">Recetas</h6>
-                    <a href="{% url 'gestion_recetas' %}"
-                    class="btn btn-sm mt-2"
-                    style="background-color:#7b68ee; color:white;">
-                        Gestionar
-                    </a>
+        <div class="col-md-2 col-4">
+            <a href="{% url 'gestion_pedidos' %}"
+               class="text-decoration-none">
+                <div class="card panel-card text-center py-3">
+                    <i class="bi bi-bag fs-2"
+                       style="color:#E24B4A;"></i>
+                    <small class="mt-1 d-block">Pedidos</small>
                 </div>
-            </div>
+            </a>
         </div>
-        <div class="col-md-3 mb-3">
-            <div class="card panel-card h-100">
-                <div class="card-body text-center py-4">
-                    <i class="bi bi-gear-fill fs-1" style="color:#E24B4A;"></i>
-                    <h6 class="mt-2">Producción</h6>
-                    <p class="text-muted small">
-                        Registrar producción de helados
-                    </p>
-                    <a href="{% url 'registrar_produccion' %}"
-                    class="btn btn-sm btn-danger mt-2">
-                        Registrar
-                    </a>
+        <div class="col-md-2 col-4">
+            <a href="{% url 'gestion_usuarios' %}"
+               class="text-decoration-none">
+                <div class="card panel-card text-center py-3">
+                    <i class="bi bi-people fs-2"
+                       style="color:#9b87f5;"></i>
+                    <small class="mt-1 d-block">Usuarios</small>
                 </div>
-            </div>
+            </a>
+        </div>
+        <div class="col-md-2 col-4">
+            <a href="{% url 'gestion_promociones' %}"
+               class="text-decoration-none">
+                <div class="card panel-card text-center py-3">
+                    <i class="bi bi-tag fs-2"
+                       style="color:#1D9E75;"></i>
+                    <small class="mt-1 d-block">Promociones</small>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-2 col-4">
+            <a href="{% url 'gestion_addons' %}"
+               class="text-decoration-none">
+                <div class="card panel-card text-center py-3">
+                    <i class="bi bi-stars fs-2"
+                       style="color:#EF9F27;"></i>
+                    <small class="mt-1 d-block">Agregados</small>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-2 col-4">
+            <a href="{% url 'reportes' %}"
+               class="text-decoration-none">
+                <div class="card panel-card text-center py-3">
+                    <i class="bi bi-graph-up fs-2"
+                       style="color:#378ADD;"></i>
+                    <small class="mt-1 d-block">Reportes</small>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-2 col-4">
+            <a href="{% url 'gestion_caja' %}"
+               class="text-decoration-none">
+                <div class="card panel-card text-center py-3">
+                    <i class="bi bi-cash-stack fs-2"
+                       style="color:#1D9E75;"></i>
+                    <small class="mt-1 d-block">Caja</small>
+                </div>
+            </a>
         </div>
     </div>
 </div>
